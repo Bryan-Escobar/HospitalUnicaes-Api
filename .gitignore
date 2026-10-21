@@ -1,0 +1,20 @@
+
+
+
+
+
+.env
+
+mongo/
+postgres/
+node_modules/
+dist/
+build/
+coverage/
+/src/generated/prisma
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+scripts/
