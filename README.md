@@ -9,9 +9,10 @@ Construido con **Node.js**, **Express**, **TypeScript** y **Prisma ORM** sobre P
 
 ## Requisitos Previos
 
-- **Node.js** >= 18.x
-- **npm** >= 9.x
-- **PostgreSQL**
+- **Node.js** 20 (ver `.nvmrc`; con nvm: `nvm use`)
+- **npm** >= 10
+- **Docker** (opcional: imagen de la API y Supabase local)
+- **Supabase CLI** (para migraciones)
 
 ## Instalación
 
@@ -31,6 +32,9 @@ Copia `.env.example` a `.env` en la raíz del proyecto y completa los valores (S
 | Variable | Uso |
 |---|---|
 | `PORT` | Puerto del servidor Express |
+| `NODE_ENV` | `development` \| `test` \| `production` (por defecto `development`) |
+| `LOG_LEVEL` | Nivel del logger: `fatal`…`trace` o `silent` (por defecto `info`) |
+| `CORS_ORIGINS` | Orígenes permitidos separados por coma, `*` = cualquiera (por defecto `http://localhost:5173`) |
 | `DATABASE_URL` | Conexión con pooler en modo transacción (puerto 6543) para las consultas de Prisma |
 | `DIRECT_URL` | Conexión con pooler en modo sesión (puerto 5432) para introspección (`prisma db pull`) |
 | `SUPABASE_URL` | URL del proyecto (`https://<project-ref>.supabase.co`) |
@@ -83,80 +87,101 @@ npx prisma db pull && npx prisma generate   # actualiza el cliente de Prisma
 ## Scripts
 
 ```bash
-npm run dev          # Servidor en desarrollo con hot reload
-npm run build        # Compila TypeScript → dist/
-npm start            # Build + ejecuta el compilado
-npm test             # Tests con Mocha
-npm run test:coverage  # Tests con reporte de cobertura (nyc)
+npm run dev            # Servidor en desarrollo con hot reload (http://localhost:3000)
+npm run build          # Compila TypeScript → dist/
+npm start              # Ejecuta el compilado (dist/app.js)
+npm test               # Tests con Jest + supertest
+npm run test:watch     # Tests en modo watch
+npm run test:coverage  # Tests con reporte de cobertura
+npm run typecheck      # Verificación de tipos (src + test)
+npm run lint           # ESLint (lint:fix para corregir)
+npm run format         # Prettier (format:check solo verifica)
 ```
+
+El CI (`.github/workflows/tests.yml`) corre lint, formato, typecheck, tests y build en cada PR.
+
+## Endpoints base
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/health` | Estado del servidor. Siempre 200 si el proceso vive; `data.database` indica `up`/`down` |
+| POST | `/health/echo` | Eco del body (ejemplo de validación con zod) |
+| GET | `/docs` | Documentación interactiva (Swagger UI) |
+| GET | `/docs.json` | Especificación OpenAPI 3 en JSON (para Postman, Kotlin, Swift) |
+
+Los endpoints de negocio se montan bajo `/api` en `src/presentation/routes.ts`.
 
 ## Estructura del Proyecto
 
 ```
 src/
-├── app.ts                        # Punto de entrada
+├── app.ts                         # Punto de entrada: arranca el servidor y apagado ordenado (SIGTERM)
 ├── config/
-│   ├── envs.ts                   # Variables de entorno (env-var)
-│   └── prisma.ts                 # Singleton del cliente Prisma
+│   ├── envs.ts                    # Variables de entorno validadas (env-var)
+│   ├── logger.ts                  # Logger (pino; legible en desarrollo, JSON en producción)
+│   └── prisma.ts                  # Singleton del cliente Prisma
+├── docs/
+│   ├── registry.ts                # Registro OpenAPI y helpers (apiResponse, errorResponse)
+│   ├── openapi.ts                 # Genera el documento servido en /docs
+│   └── paths/                     # Documentación por módulo (<entidad>.docs.ts)
 ├── domain/
-│   ├── errors/
-│   │   ├── CustomError.ts        # Error tipado con statusCode
-│   │   └── errorHandler.interface.ts
-│   ├── interfaces/
-│   │   └── api-response.interface.ts  # Forma estándar de respuesta
-│   └── validators/
-│       └── health.validator.ts   # Ejemplo de schema Zod
+│   ├── errors/                    # CustomError (error tipado con statusCode)
+│   ├── interfaces/                # ApiResponse y tipos de dominio
+│   └── validators/                # Schemas zod (validan y documentan)
 ├── lib/
-│   └── errorHandler.ts           # Helper centralizado de errores
+│   ├── errorHandler.ts            # Traduce errores (CustomError, zod, Prisma) a statusCode + mensaje
+│   └── zod.ts                     # zod extendido con .openapi(): importar z desde aquí
 ├── presentation/
-│   ├── routes.ts                 # Agregador de rutas
-│   ├── server.ts                 # Clase Server (Express)
-│   ├── middlewares/
-│   │   └── validation.middleware.ts  # validateBody / validateQuery / validateParams
-│   └── Health/
-│       ├── health.controller.ts
-│       └── routes.ts
-└── services/
-    └── health.service.ts
+│   ├── server.ts                  # App Express: logger HTTP, CORS, /docs, rutas, 404 y errores
+│   ├── routes.ts                  # Agregador de rutas
+│   ├── middlewares/               # validación (zod) y manejo global de errores
+│   └── Health/                    # routes + controller por entidad
+├── services/                      # Lógica de negocio
+└── repositories/                  # Acceso a datos (único lugar que usa Prisma)
 
 test/
-├── setup.ts                      # Inyecta env vars antes de importar la app
-├── helpers/
-│   └── app.ts                    # Exporta la instancia Express para supertest
-└── presentation/
-    └── health.test.ts
+├── setup.ts                       # Env vars falsas antes de importar la app
+├── helpers/app.ts                 # App Express sin abrir puerto, para supertest
+└── presentation/                  # Tests HTTP por entidad
 ```
 
 ## Patrones Clave
+
+**Capas** — `routes` → `controller` → `service` → `repository`. Los controladores no tienen lógica; los servicios tienen las reglas de negocio y los repositorios son los únicos que usan Prisma.
 
 **Respuesta estándar** — todos los endpoints devuelven `ApiResponse`:
 ```typescript
 { statusCode, success, message, data?, errors? }
 ```
 
-**Errores** — los servicios lanzan `CustomError(message, statusCode)`. Los controladores siempre capturan con `handleError(error)`.
+**Errores** — los servicios lanzan `CustomError(message, statusCode)`. Los controladores capturan con `handleError(error)`. Un middleware global responde 404 para rutas inexistentes, 400 para JSON mal formado y 500 para lo no controlado, siempre con el mismo formato y sin exponer detalles internos.
 
-**Validación** — schemas Zod en `src/domain/validators/`. Se aplican en las rutas con los middlewares `validateBody`, `validateQuery` o `validateParams`.
+**Validación** — schemas zod en `src/domain/validators/` (importando `z` desde `src/lib/zod`). Se aplican en las rutas con `validateBody`, `validateQuery` o `validateParams`; si fallan, responden 400 con `errors: [{ field, message }]`.
 
-**Prisma** — cliente singleton en `src/config/prisma.ts`. El cliente generado vive en `src/generated/prisma/client`.
+**Documentación** — cada módulo registra sus rutas en `src/docs/paths/<entidad>.docs.ts` reutilizando los mismos schemas zod, así Swagger no se desfasa de la validación.
 
-## Endpoint de ejemplo
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/health` | Estado del servidor |
-| POST | `/api/health/echo` | Eco del body (demuestra validación Zod) |
+**Logger** — usar `logger` (`src/config/logger.ts`) o `req.log`, nunca `console.log`. Cada petición lleva un `X-Request-Id`. No registrar datos privados de pacientes.
 
 ## Tests
 
-Framework: **Mocha + Chai + Sinon + Supertest** (TDD con `suite` / `test` / `teardown`).
+Framework: **Jest + supertest** (`describe` / `test` / `expect`).
 
-Los tests son HTTP-level: golpean el Express app completo y mockean los métodos del servicio con stubs de Sinon. Nunca se conectan a una base de datos real.
+Los tests son HTTP-level: golpean la app de Express completa y simulan servicios o repositorios con `jest.spyOn`. Nunca se conectan a una base de datos real.
 
 ```bash
 npm test
+npm test -- -t "Health API"   # filtra por nombre
 npm run test:coverage
 ```
+
+## Docker
+
+```bash
+docker build -t hospitalunicaes-api .
+docker run --rm -p 3000:3000 --env-file .env hospitalunicaes-api
+```
+
+Imagen multi-etapa sobre `node:20-alpine`, sin dependencias de desarrollo, con usuario sin privilegios y `HEALTHCHECK` contra `/health`. El `.dockerignore` excluye `.env` y artefactos locales.
 
 ## Dependencias Principales
 
@@ -164,10 +189,14 @@ npm run test:coverage
 |---------|-----|
 | `express` | Framework web |
 | `typescript` | Tipado estático |
-| `prisma` / `@prisma/client` | ORM |
+| `prisma` / `@prisma/client` | Cliente de base de datos |
 | `zod` | Validación de esquemas |
+| `@asteasolutions/zod-to-openapi` + `swagger-ui-express` | Documentación OpenAPI en `/docs` |
+| `pino` / `pino-http` | Logger |
 | `cors` | Política de origen cruzado |
 | `dotenv` / `env-var` | Variables de entorno |
+| `jest` / `ts-jest` / `supertest` | Tests |
+| `eslint` / `typescript-eslint` / `prettier` | Lint y formato |
 
 ## Ramas
 
