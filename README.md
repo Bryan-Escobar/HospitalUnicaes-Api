@@ -26,16 +26,19 @@ npm install
 
 ### 2. Variables de entorno
 
-Copia `.env.template` a `.env` en la raíz del proyecto y completa los valores:
+Copia `.env.example` a `.env` en la raíz del proyecto y completa los valores (Supabase Dashboard > Project Settings):
 
-```env
-PORT=3000
-DATABASE_URL="postgresql://user:password@host:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://user:password@host:5432/postgres"
-```
+| Variable | Uso |
+|---|---|
+| `PORT` | Puerto del servidor Express |
+| `DATABASE_URL` | Conexión con pooler en modo transacción (puerto 6543) para las consultas de Prisma |
+| `DIRECT_URL` | Conexión con pooler en modo sesión (puerto 5432) para introspección (`prisma db pull`) |
+| `SUPABASE_URL` | URL del proyecto (`https://<project-ref>.supabase.co`) |
+| `SUPABASE_ANON_KEY` | Llave pública (anon/publishable); respeta RLS |
+| `SUPABASE_SERVICE_ROLE_KEY` | Llave de servicio; **salta RLS**, solo para el backend |
+| `SUPABASE_DB_PASSWORD` | Opcional: contraseña de la BD para la CLI de Supabase sin prompt |
 
-- `DATABASE_URL`: conexión con pooler (puerto 6543) para consultas normales
-- `DIRECT_URL`: conexión directa (puerto 5432) para introspecciones
+> Ninguna llave (anon ni service role) ni contraseña se sube al repositorio. `.env` y `.env.*` están en `.gitignore`.
 
 ### 3. Generar el cliente de Prisma
 
@@ -43,7 +46,39 @@ DIRECT_URL="postgresql://user:password@host:5432/postgres"
 npx prisma generate
 ```
 
-> Ejecutar siempre después de cambios en `prisma/schema.prisma`. La estrategia de migraciones y datos semilla (11 habitaciones, 17 camas, 1 ambulancia, admin) se define en HUNI-16.
+> Ejecutar siempre después de cambios en `prisma/schema.prisma`.
+
+## Base de datos y migraciones (Supabase CLI)
+
+El esquema de la base de datos se versiona con la **Supabase CLI** en `supabase/migrations/` (SQL). Es la única fuente de verdad del esquema: **no usar `prisma migrate`**. Prisma solo se usa como cliente (`prisma db pull` + `prisma generate`).
+
+- Proyecto remoto: **Hospital UNICAES** (ref `idhxyneffsmyekrvpyfg`, Postgres 17).
+- Auth: email/contraseña habilitado (mínimo 8 caracteres con mayúsculas, minúsculas y dígitos; ver `supabase/config.toml`).
+- Migración inicial: `20261022011429_esquema_inicial.sql`, capturada con `supabase db pull` desde el proyecto remoto (tablas del ERD, enums, triggers e índices).
+
+### Configuración inicial (una vez por máquina)
+
+Requiere [Supabase CLI](https://supabase.com/docs/guides/cli/getting-started) y, para el entorno local, Docker.
+
+```bash
+supabase login
+supabase link --project-ref idhxyneffsmyekrvpyfg
+```
+
+### Flujo para cambios de esquema
+
+```bash
+supabase migration new <descripcion>   # crea supabase/migrations/<timestamp>_<descripcion>.sql
+supabase start                         # levanta Supabase local y aplica todas las migraciones desde cero
+supabase db reset                      # vuelve a aplicar todo desde cero tras editar una migración
+supabase db push --dry-run             # muestra qué migraciones faltan en el remoto
+supabase db push                       # aplica las migraciones pendientes al proyecto remoto
+npx prisma db pull && npx prisma generate   # actualiza el cliente de Prisma
+```
+
+> Nunca cambies el esquema desde el Dashboard sin crear su migración. Si alguien lo hizo, captura el cambio con `supabase db pull <descripcion>`.
+>
+> Los datos semilla (11 habitaciones, 17 camas, 1 ambulancia, usuarios demo) se agregan en HUNI-37 (`supabase/seed.sql`).
 
 ## Scripts
 
