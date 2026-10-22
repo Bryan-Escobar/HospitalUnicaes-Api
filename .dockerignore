@@ -1,0 +1,15 @@
+# Nunca enviar secretos ni artefactos locales al contexto de Docker
+.env
+.env.*
+!.env.example
+.git
+.github
+node_modules
+dist
+coverage
+src/generated
+test
+supabase
+*.md
+Dockerfile
+docker-compose.yml
