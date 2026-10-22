@@ -146,7 +146,8 @@ Disponible ⇄ En Mantenimiento
 | Capa | Tecnología | Notas |
 |---|---|---|
 | **Backend** | **Node.js + TypeScript** | API REST unificada para iOS, Android y Web |
-| **ORM** | **Prisma** | Esquema en `backend/prisma/schema.prisma`; migraciones con `prisma migrate`; datos semilla con `prisma db seed` |
+| **ORM** | **Prisma** | Solo como cliente: `prisma db pull` + `prisma generate`. Sin `prisma migrate` |
+| **Base de datos** | **PostgreSQL 17 en Supabase** | Auth email/contraseña; migraciones SQL con Supabase CLI en `supabase/migrations` (2026-10-21, HUNI-16) |
 | **Web administrativa** | **React + Vite** | SPA del panel de Administrador / Jefe de Operaciones |
 | **App Android** | **Android Studio + Kotlin** (Gradle) | MVVM + Coroutines (+ Flow) |
 | **App iOS** | **Xcode + Swift** (SwiftUI) | MVVM + async/await (o Combine) |
@@ -161,7 +162,6 @@ Implicaciones para el código:
 #### Aún **[POR DEFINIR]**
 | Tema | Opciones | Decisión |
 |---|---|---|
-| Base de datos (motor para Prisma) | PostgreSQL / MySQL / otra | — |
 | Framework HTTP en Node | Express / Fastify / NestJS | — |
 | Autenticación | JWT propio (access + refresh) / proveedor externo | — |
 | Tiempo real (ambulancia, ocupación) | Socket.IO / WebSockets nativos / SSE / polling | — |
@@ -324,6 +324,7 @@ Leyenda: **C** crear · **R** leer · **U** actualizar · **D** eliminar · *(pr
 |---|---|---|
 | 2026-10-17 | Creación de este documento de contexto a partir del enunciado oficial | — |
 | 2026-10-17 | Stack: Node.js + TypeScript + Prisma (backend), React + Vite (web), Kotlin en Android Studio (Android), Swift en Xcode (iOS) | Equipo |
+| 2026-10-21 | BD en Supabase (PostgreSQL 17, proyecto "Hospital UNICAES") con Auth email/contraseña. El esquema se versiona con Supabase CLI (`supabase/migrations`); Prisma solo como cliente (`db pull` + `generate`), sin `prisma migrate` (HUNI-16) | Jimmy |
 
 ## 12. Glosario
 - **VIP:** habitación individual de la 3ª planta.

@@ -32,6 +32,8 @@ All routes are registered in `src/presentation/routes.ts` (the single aggregator
 
 **Prisma client** — singleton imported from `src/config/prisma.ts`. Generated client is at `src/generated/prisma/client` (non-standard path). Run `npx prisma generate` after schema changes, never `prisma migrate` directly.
 
+**DB migrations** — the schema is versioned with Supabase CLI in `supabase/migrations/*.sql` (single source of truth). New change: `supabase migration new <name>`, test with `supabase db reset`, apply with `supabase db push`, then `npx prisma db pull && npx prisma generate`. Never commit keys; `.env.example` lists the variables.
+
 **Response format** — every endpoint returns `ApiResponse` from `src/domain/interfaces/api-response.interface.ts`:
 ```typescript
 { statusCode, success, message, data?, errors? }
