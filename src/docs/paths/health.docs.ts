@@ -1,6 +1,6 @@
-import { z } from '../../lib/zod';
 import { echoBodySchema } from '../../domain/validators/health.validator';
-import { apiResponse, errorResponse, registry } from '../registry';
+import { z } from '../../lib/zod';
+import { jsonBody, registerEndpoint, registry } from '../registry';
 
 const HealthStatusSchema = registry.register(
   'HealthStatus',
@@ -12,33 +12,26 @@ const HealthStatusSchema = registry.register(
   }),
 );
 
-registry.registerPath({
+registerEndpoint({
   method: 'get',
   path: '/health',
-  tags: ['Health'],
+  tag: 'Health',
   summary: 'Estado del servidor',
   description: 'Siempre responde 200 si el proceso está vivo; el estado de la base de datos va en `data.database`.',
-  responses: {
-    200: {
-      description: 'Servidor operativo',
-      content: { 'application/json': { schema: apiResponse(HealthStatusSchema) } },
-    },
-  },
+  roles: 'publico',
+  ticket: 'HUNI-17',
+  estado: 'implementado',
+  response: { description: 'Servidor operativo', schema: HealthStatusSchema },
 });
 
-registry.registerPath({
+registerEndpoint({
   method: 'post',
   path: '/health/echo',
-  tags: ['Health'],
+  tag: 'Health',
   summary: 'Eco del mensaje (ejemplo de validación con zod)',
-  request: {
-    body: { content: { 'application/json': { schema: echoBodySchema } } },
-  },
-  responses: {
-    200: {
-      description: 'Echo exitoso',
-      content: { 'application/json': { schema: apiResponse(z.object({ echo: z.string() })) } },
-    },
-    400: errorResponse('Body inválido'),
-  },
+  roles: 'publico',
+  ticket: 'HUNI-17',
+  estado: 'implementado',
+  request: { body: jsonBody(echoBodySchema) },
+  response: { description: 'Echo exitoso', schema: z.object({ echo: z.string() }) },
 });
