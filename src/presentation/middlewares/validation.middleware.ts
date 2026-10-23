@@ -35,7 +35,13 @@ const validate =
         field: issue.path.join('.'),
         message: issue.message,
       }));
-      const response: ApiResponse = { statusCode: 400, success: false, message: MESSAGES[source], errors };
+      const response: ApiResponse = {
+        statusCode: 400,
+        success: false,
+        code: 'VALIDACION',
+        message: MESSAGES[source],
+        errors,
+      };
       res.status(400).json(response);
     }
   };

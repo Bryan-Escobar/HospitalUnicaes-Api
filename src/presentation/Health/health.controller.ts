@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { ApiResponse, HealthStatus } from '../../domain/interfaces';
 import { EchoBody } from '../../domain/validators/health.validator';
-import { handleError } from '../../lib/errorHandler';
+import { toErrorResponse } from '../../lib/errorHandler';
 import { HealthService } from '../../services/health.service';
 
 export class HealthController {
@@ -18,8 +18,8 @@ export class HealthController {
       };
       res.status(200).json(response);
     } catch (error) {
-      const { statusCode, message } = handleError(error);
-      res.status(statusCode).json({ statusCode, success: false, message });
+      const response = toErrorResponse(error);
+      res.status(response.statusCode).json(response);
     }
   };
 
@@ -34,8 +34,8 @@ export class HealthController {
       };
       res.status(200).json(response);
     } catch (error) {
-      const { statusCode, message } = handleError(error);
-      res.status(statusCode).json({ statusCode, success: false, message });
+      const response = toErrorResponse(error);
+      res.status(response.statusCode).json(response);
     }
   };
 }

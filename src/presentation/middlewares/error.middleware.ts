@@ -1,12 +1,14 @@
 import { NextFunction, Request, Response } from 'express';
+import { CustomError } from '../../domain/errors/CustomError';
 import { ApiResponse } from '../../domain/interfaces';
-import { handleError } from '../../lib/errorHandler';
+import { toErrorResponse } from '../../lib/errorHandler';
 
 // Rutas inexistentes → 404 con el formato estándar.
 export const notFoundHandler = (req: Request, res: Response) => {
   const response: ApiResponse = {
     statusCode: 404,
     success: false,
+    code: 'RUTA_NO_ENCONTRADA',
     message: `Ruta no encontrada: ${req.method} ${req.path}`,
   };
   res.status(404).json(response);
@@ -17,12 +19,11 @@ export const errorHandler = (err: unknown, req: Request, res: Response, _next: N
   const isBodyParseError =
     err instanceof SyntaxError && (err as SyntaxError & { type?: string }).type === 'entity.parse.failed';
 
-  const { statusCode, message } = isBodyParseError
-    ? { statusCode: 400, message: 'El cuerpo de la petición no es un JSON válido' }
-    : handleError(err);
+  const response = toErrorResponse(
+    isBodyParseError ? CustomError.badRequest('El cuerpo de la petición no es un JSON válido', 'JSON_INVALIDO') : err,
+  );
 
-  if (statusCode >= 500) req.log?.error({ err }, 'Error no controlado');
+  if (response.statusCode >= 500) req.log?.error({ err }, 'Error no controlado');
 
-  const response: ApiResponse = { statusCode, success: false, message };
-  res.status(statusCode).json(response);
+  res.status(response.statusCode).json(response);
 };

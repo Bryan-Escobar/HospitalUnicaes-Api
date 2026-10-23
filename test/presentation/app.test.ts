@@ -6,7 +6,12 @@ describe('App', () => {
     const res = await request(app).get('/api/no-existe');
 
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ statusCode: 404, success: false, message: 'Ruta no encontrada: GET /api/no-existe' });
+    expect(res.body).toEqual({
+      statusCode: 404,
+      success: false,
+      code: 'RUTA_NO_ENCONTRADA',
+      message: 'Ruta no encontrada: GET /api/no-existe',
+    });
   });
 
   test('deberia servir la especificacion OpenAPI en /docs.json', async () => {
