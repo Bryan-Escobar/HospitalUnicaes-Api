@@ -30,7 +30,12 @@ describe('Health API', () => {
       const res = await request(app).get('/health');
 
       expect(res.status).toBe(500);
-      expect(res.body).toEqual({ statusCode: 500, success: false, message: 'Error interno del servidor' });
+      expect(res.body).toEqual({
+        statusCode: 500,
+        success: false,
+        code: 'ERROR_INTERNO',
+        message: 'Error interno del servidor',
+      });
     });
   });
 
@@ -47,7 +52,7 @@ describe('Health API', () => {
       const res = await request(app).post('/health/echo').send({ message: '' });
 
       expect(res.status).toBe(400);
-      expect(res.body.success).toBe(false);
+      expect(res.body).toMatchObject({ success: false, code: 'VALIDACION' });
       expect(res.body.errors).toEqual([{ field: 'message', message: 'El mensaje no puede estar vacío' }]);
     });
 
@@ -62,7 +67,11 @@ describe('Health API', () => {
       const res = await request(app).post('/health/echo').set('Content-Type', 'application/json').send('{"message":');
 
       expect(res.status).toBe(400);
-      expect(res.body).toMatchObject({ success: false, message: 'El cuerpo de la petición no es un JSON válido' });
+      expect(res.body).toMatchObject({
+        success: false,
+        code: 'JSON_INVALIDO',
+        message: 'El cuerpo de la petición no es un JSON válido',
+      });
     });
   });
 });
