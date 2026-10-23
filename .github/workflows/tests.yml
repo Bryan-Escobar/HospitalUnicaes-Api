@@ -2,7 +2,7 @@ name: Backend API Tests CI
 
 on:
   pull_request:
-    branches: [ "development", "staging", "prod" ]
+    branches: ['development', 'staging', 'prod']
 
 jobs:
   test:
@@ -10,20 +10,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout del código
-      uses: actions/checkout@v4
+      - name: Checkout del código
+        uses: actions/checkout@v4
 
-    - name: Configurar Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
 
-    - name: Instalar dependencias
-      run: npm ci
+      - name: Instalar dependencias
+        run: npm ci
 
-    - name: Generar Prisma Client
-      run: npx prisma generate
+      - name: Generar Prisma Client
+        run: npx prisma generate
 
-    - name: test-api
-      run: npm test
+      - name: Lint
+        run: npm run lint
+
+      - name: Formato
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: test-api
+        run: npm test
+
+      - name: Build
+        run: npm run build

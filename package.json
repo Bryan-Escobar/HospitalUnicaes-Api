@@ -2,51 +2,48 @@
   "name": "hospitalunicaes-api",
   "version": "1.0.0",
   "description": "Backend unificado de HospitalUnicaes (Node.js + TypeScript + Express + Prisma)",
-  "main": "index.js",
+  "main": "dist/app.js",
   "scripts": {
     "dev": "tsnd --respawn --clear src/app.ts",
     "build": "rimraf ./dist && tsc",
-    "start": "npm run build && node dist/app.js",
-    "test": "mocha",
-    "test:coverage": "nyc mocha"
-  },
-  "nyc": {
-    "extension": [
-      ".ts"
-    ],
-    "include": [
-      "src/**/*.ts"
-    ],
-    "reporter": [
-      "text",
-      "lcov"
-    ],
-    "all": true
+    "start": "node dist/app.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "typecheck": "tsc --noEmit -p test/tsconfig.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "keywords": [],
   "author": "",
   "license": "UNLICENSED",
   "devDependencies": {
-    "@types/chai": "^5.2.3",
+    "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.18",
-    "@types/mocha": "^10.0.10",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.19.28",
     "@types/pg": "^8.16.0",
-    "@types/sinon": "^21.0.0",
     "@types/supertest": "^7.2.0",
-    "chai": "^4.5.0",
-    "mocha": "^11.7.5",
-    "nyc": "^18.0.0",
+    "@types/swagger-ui-express": "^4.1.8",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "jest": "^30.5.2",
+    "pino-pretty": "^13.2.0",
+    "prettier": "^3.9.10",
     "rimraf": "^5.0.5",
-    "sinon": "^21.0.3",
     "supertest": "^7.2.2",
+    "ts-jest": "^29.4.15",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "tsx": "^4.21.0",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "typescript-eslint": "^8.72.0"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
     "@prisma/adapter-pg": "6.16.1",
     "@prisma/client": "^6.19.3",
     "cors": "^2.8.6",
@@ -54,8 +51,14 @@
     "env-var": "^7.4.1",
     "express": "^4.18.2",
     "pg": "^8.16.3",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0",
     "prisma": "^6.19.3",
+    "swagger-ui-express": "^5.0.1",
     "zod": "^4.1.13"
   },
-  "private": true
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
 }

@@ -1,31 +1,29 @@
-import { CustomError } from "../domain/errors/CustomError";
-import { ErrorHandlerInterface } from "../domain/errors/errorHandler.interface";
-import { ZodError } from "zod";
+import { ZodError } from 'zod';
+import { CustomError } from '../domain/errors/CustomError';
+import { ErrorHandlerInterface } from '../domain/errors/errorHandler.interface';
 
-//Helper para manejo centralizado de errores en controladores
-export const handleError = (error: any): ErrorHandlerInterface => {
-  let statusCode = 500,
-    message = "Error interno del servidor";
-
+// Traduce cualquier error a { statusCode, message } sin filtrar detalles internos al cliente.
+export const handleError = (error: unknown): ErrorHandlerInterface => {
   if (error instanceof CustomError) {
-    statusCode = error.statusCode;
-    message = error.message;
-  } else if (error instanceof ZodError) {
-    statusCode = 400;
-    message = error.issues.map((issue: any) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
-  } else if (error && typeof error === "object" && "code" in error) {
-    const prismaCode = String((error as any).code ?? "");
-    if (prismaCode === "P2002") {
-      statusCode = 409;
-      message = "Conflicto por registro duplicado. Verifica que la postulación no exista ya para el mismo ciclo.";
-    } else if (prismaCode === "P2003") {
-      statusCode = 400;
-      message = "Error de referencia de datos. Verifica docente, materia y ciclo seleccionados.";
-    } else if (prismaCode === "P2025") {
-      statusCode = 404;
-      message = "No se encontró el registro solicitado para completar la operación.";
+    return { statusCode: error.statusCode, message: error.message };
+  }
+
+  if (error instanceof ZodError) {
+    const message = error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
+    return { statusCode: 400, message };
+  }
+
+  // Errores conocidos de Prisma (https://www.prisma.io/docs/orm/reference/error-reference)
+  if (error && typeof error === 'object' && 'code' in error) {
+    switch (String((error as { code: unknown }).code)) {
+      case 'P2002':
+        return { statusCode: 409, message: 'Ya existe un registro con esos datos únicos' };
+      case 'P2003':
+        return { statusCode: 400, message: 'El registro referenciado no existe' };
+      case 'P2025':
+        return { statusCode: 404, message: 'No se encontró el registro solicitado' };
     }
   }
 
-  return { statusCode, message };
+  return { statusCode: 500, message: 'Error interno del servidor' };
 };

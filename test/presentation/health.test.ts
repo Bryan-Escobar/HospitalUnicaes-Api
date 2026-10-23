@@ -1,52 +1,68 @@
-import { assert } from 'chai';
-import sinon from 'sinon';
 import request from 'supertest';
-import { app } from '../helpers/app';
+import { HealthRepository } from '../../src/repositories/health.repository';
 import { HealthService } from '../../src/services/health.service';
+import { app } from '../helpers/app';
 
-suite('Health API', () => {
-  teardown(() => sinon.restore());
+describe('Health API', () => {
+  describe('GET /health', () => {
+    test('deberia retornar 200 con status ok y la BD arriba', async () => {
+      jest.spyOn(HealthRepository.prototype, 'pingDatabase').mockResolvedValue();
 
-  suite('GET /api/health', () => {
-    test('deberia retornar 200 con status ok', async () => {
-      const mockData = { status: 'ok', timestamp: '2026-01-01T00:00:00.000Z' };
-      sinon.stub(HealthService.prototype, 'getStatus').returns(mockData);
+      const res = await request(app).get('/health');
 
-      const res = await request(app).get('/api/health');
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ statusCode: 200, success: true, data: { status: 'ok', database: 'up' } });
+      expect(res.headers['x-request-id']).toBeDefined();
+    });
 
-      assert.equal(res.status, 200, 'deberia ser 200');
-      assert.isTrue(res.body.success, 'success deberia ser true');
-      assert.equal(res.body.data.status, 'ok');
+    test('deberia retornar 200 con database down si la BD no responde', async () => {
+      jest.spyOn(HealthRepository.prototype, 'pingDatabase').mockRejectedValue(new Error('sin conexion'));
+
+      const res = await request(app).get('/health');
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.database).toBe('down');
+    });
+
+    test('deberia retornar 500 con formato estandar si el servicio falla', async () => {
+      jest.spyOn(HealthService.prototype, 'getStatus').mockRejectedValue(new Error('inesperado'));
+
+      const res = await request(app).get('/health');
+
+      expect(res.status).toBe(500);
+      expect(res.body).toEqual({ statusCode: 500, success: false, message: 'Error interno del servidor' });
     });
   });
 
-  suite('POST /api/health/echo', () => {
+  describe('POST /health/echo', () => {
     test('deberia retornar 200 con el mensaje de echo', async () => {
-      sinon.stub(HealthService.prototype, 'echo').returns({ echo: 'hola' });
+      const res = await request(app).post('/health/echo').send({ message: 'hola' });
 
-      const res = await request(app)
-        .post('/api/health/echo')
-        .send({ message: 'hola' });
-
-      assert.equal(res.status, 200, 'deberia ser 200');
-      assert.isTrue(res.body.success);
-      assert.equal(res.body.data.echo, 'hola');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.echo).toBe('hola');
     });
 
-    test('deberia retornar 400 si message esta vacio', async () => {
-      const res = await request(app)
-        .post('/api/health/echo')
-        .send({ message: '' });
+    test('deberia retornar 400 con errores de validacion si message esta vacio', async () => {
+      const res = await request(app).post('/health/echo').send({ message: '' });
 
-      assert.equal(res.status, 400, 'deberia ser 400');
-      assert.isFalse(res.body.success);
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.errors).toEqual([{ field: 'message', message: 'El mensaje no puede estar vacío' }]);
     });
 
     test('deberia retornar 400 si no se envia body', async () => {
-      const res = await request(app).post('/api/health/echo').send({});
+      const res = await request(app).post('/health/echo').send({});
 
-      assert.equal(res.status, 400, 'deberia ser 400');
-      assert.isFalse(res.body.success);
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    test('deberia retornar 400 si el JSON esta mal formado', async () => {
+      const res = await request(app).post('/health/echo').set('Content-Type', 'application/json').send('{"message":');
+
+      expect(res.status).toBe(400);
+      expect(res.body).toMatchObject({ success: false, message: 'El cuerpo de la petición no es un JSON válido' });
     });
   });
 });

@@ -1,66 +1,46 @@
-# Use Node.js LTS (Long Term Support) version
+# ---------- Etapa 1: build ----------
 FROM node:20-alpine AS builder
 
-# Set working directory
+# Prisma necesita OpenSSL en Alpine
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
-
-# Copy Prisma schema (needed for prisma generate)
 COPY prisma ./prisma
+RUN npm ci --no-audit --no-fund
 
-# Install all dependencies (including dev dependencies for build)
-RUN npm install && \
-    npm cache clean --force
-
-# Copy TypeScript config and source code BEFORE prisma generate
-# so that the generated Linux client overwrites the macOS one from the repo
 COPY tsconfig.json ./
 COPY src ./src
 
-# Generate Prisma client for the current platform (Linux)
-# This regenerates src/generated/prisma with the correct linux engine
-RUN npx prisma generate
+# Genera el cliente de Prisma para Linux (musl) y compila TypeScript
+RUN npx prisma generate && npm run build
 
-# Build TypeScript to JavaScript
-RUN npm run build
-
-# Copy Prisma native engine binary to dist
-# tsc only compiles .ts files; .node binaries must be copied manually
+# tsc solo compila .ts: el motor nativo de Prisma (.node) se copia a mano
 RUN cp src/generated/prisma/*.node dist/generated/prisma/
 
-# Production stage
+# ---------- Etapa 2: producción ----------
 FROM node:20-alpine
 
-# Set working directory
+RUN apk add --no-cache openssl
+
 WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
 
-# Copy package files
 COPY package*.json ./
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund && npm cache clean --force
 
-# Install only production dependencies
-RUN npm install --omit=dev && \
-    npm cache clean --force
-
-# Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
-
-# Copy public folder if needed
 COPY public ./public
 
-# Create a non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-
-# Change ownership of the app directory
-RUN chown -R nodejs:nodejs /app
-
-# Switch to non-root user
+# Usuario sin privilegios
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 -G nodejs && chown -R nodejs:nodejs /app
 USER nodejs
 
-# Expose the port (adjust if your app uses a different port)
 EXPOSE 3000
 
-# Start the application
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- "http://127.0.0.1:${PORT}/health" > /dev/null || exit 1
+
 CMD ["node", "dist/app.js"]

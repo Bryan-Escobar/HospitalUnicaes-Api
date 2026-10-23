@@ -1,4 +1,4 @@
 export interface ErrorHandlerInterface {
-    statusCode: number;
-    message: string;
+  statusCode: number;
+  message: string;
 }

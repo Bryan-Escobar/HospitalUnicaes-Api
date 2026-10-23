@@ -1,61 +1,82 @@
-import express, { Router } from 'express';
-import path from 'path';
 import cors from 'cors';
+import express, { Router } from 'express';
+import { Server as HttpServer } from 'http';
+import { randomUUID } from 'node:crypto';
+import { pinoHttp } from 'pino-http';
+import swaggerUi from 'swagger-ui-express';
+import { envs } from '../config/envs';
+import { logger } from '../config/logger';
+import { buildOpenApiDocument } from '../docs/openapi';
+import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
+
 interface Options {
   port: number;
   routes: Router;
-  public_path?: string;
+  publicPath?: string;
 }
 
-
 export class Server {
-
   public readonly app = express();
-  private serverListener?: any;
   private readonly port: number;
-  private readonly publicPath: string;
-  private readonly routes: Router;
+  private httpServer?: HttpServer;
 
-  constructor(options: Options) {
-    const { port, routes, public_path = 'public' } = options;
+  constructor({ port, routes, publicPath = 'public' }: Options) {
     this.port = port;
-    this.publicPath = public_path;
-    this.routes = routes;
+    this.configure(routes, publicPath);
   }
 
+  // Monta middlewares y rutas sin abrir el puerto (los tests usan `app` directamente).
+  private configure(routes: Router, publicPath: string) {
+    const app = this.app;
+    app.disable('x-powered-by');
 
+    app.use(
+      pinoHttp({
+        logger,
+        genReqId: (req, res) => {
+          const id = (req.headers['x-request-id'] as string | undefined) ?? randomUUID();
+          res.setHeader('X-Request-Id', id);
+          return id;
+        },
+        customLogLevel: (_req, res, err) =>
+          err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info',
+        autoLogging: { ignore: (req) => req.url === '/health' }, // healthchecks de Docker sin ruido
+        // Solo lo necesario: sin headers ni cuerpos (pueden traer tokens o datos de pacientes).
+        serializers: {
+          req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+          res: (res) => ({ statusCode: res.statusCode }),
+        },
+      }),
+    );
 
-  async start() {
+    app.use(cors({ origin: envs.CORS_ORIGINS.includes('*') ? true : envs.CORS_ORIGINS }));
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
 
+    const openApiDocument = buildOpenApiDocument();
+    app.get('/docs.json', (_req, res) => res.json(openApiDocument));
+    app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument, { customSiteTitle: 'HospitalUnicaes API' }));
 
-    this.app.use(cors({
-      origin: ['http://localhost:5173', 'https://planify.codiq.online'],
-    }))
+    app.use(express.static(publicPath));
+    app.use(routes);
 
-    //* Middlewares
-    this.app.use(express.json()); // raw
-    this.app.use(express.urlencoded({ extended: true })); // x-www-form-urlencoded
+    app.use(notFoundHandler);
+    app.use(errorHandler);
+  }
 
-    //* Public Folder
-    this.app.use(express.static(this.publicPath));
-
-    //* Routes
-    this.app.use(this.routes);
-
-    //* SPA /^\/(?!api).*/  <== Únicamente si no empieza con la palabra api
-    this.app.get('*', (req, res) => {
-      const indexPath = path.join(__dirname + `../../../${this.publicPath}/index.html`);
-      res.sendFile(indexPath);
+  start(): Promise<void> {
+    return new Promise((resolve) => {
+      this.httpServer = this.app.listen(this.port, () => {
+        logger.info(`Servidor escuchando en http://localhost:${this.port} (docs en /docs)`);
+        resolve();
+      });
     });
+  }
 
-    this.serverListener = this.app.listen(this.port, () => {
-      console.log(`Server running on port ${this.port}`);
+  close(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.httpServer) return resolve();
+      this.httpServer.close((err) => (err ? reject(err) : resolve()));
     });
-
   }
-
-  public close() {
-    this.serverListener?.close();
-  }
-
 }
