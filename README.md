@@ -111,6 +111,24 @@ El CI (`.github/workflows/tests.yml`) corre lint, formato, typecheck, tests y bu
 
 Los endpoints de negocio se montan bajo `/api` en `src/presentation/routes.ts`.
 
+## Contrato de API v1 (HUNI-36)
+
+El contrato completo vive en **`/docs`** (y en JSON en `/docs.json`). Cubre auth/me, pacientes, personal, consultas, laboratorio, habitaciones, ambulancia, dashboard y público. Cada endpoint indica:
+
+- **Roles** que pueden usarlo (o si es público).
+- **Estado:** `(pendiente)` si todavía no responde, con el ticket que lo implementa.
+- **Códigos de error** posibles por status.
+
+Los clientes pueden trabajar en paralelo simulando los endpoints pendientes con el contrato:
+
+```bash
+npx @stoplight/prism-cli mock http://localhost:3000/docs.json
+```
+
+o importando `/docs.json` en Postman (Mock server).
+
+Al implementar un endpoint, pon `estado: 'implementado'` en su `src/docs/paths/<modulo>.docs.ts`. Un test (`test/docs/contrato.test.ts`) falla si el estado documentado no coincide con lo que responde la API.
+
 ## Estructura del Proyecto
 
 ```
@@ -125,9 +143,10 @@ src/
 │   ├── openapi.ts                 # Genera el documento servido en /docs
 │   └── paths/                     # Documentación por módulo (<entidad>.docs.ts)
 ├── domain/
-│   ├── errors/                    # CustomError (error tipado con statusCode)
+│   ├── dtos/                      # Schemas zod de respuesta (contrato) y enums de la BD
+│   ├── errors/                    # CustomError y catálogo de códigos de error (error-codes.ts)
 │   ├── interfaces/                # ApiResponse y tipos de dominio
-│   └── validators/                # Schemas zod (validan y documentan)
+│   └── validators/                # Schemas zod de entrada (validan y documentan)
 ├── lib/
 │   ├── errorHandler.ts            # Traduce errores (CustomError, zod, Prisma) a statusCode + mensaje
 │   └── zod.ts                     # zod extendido con .openapi(): importar z desde aquí
@@ -151,14 +170,23 @@ test/
 
 **Respuesta estándar** — todos los endpoints devuelven `ApiResponse`:
 ```typescript
-{ statusCode, success, message, data?, errors? }
+// Éxito
+{ statusCode, success: true, message, data }
+// Error
+{ statusCode, success: false, code, message, errors? }
 ```
 
-**Errores** — los servicios lanzan `CustomError(message, statusCode)`. Los controladores capturan con `handleError(error)`. Un middleware global responde 404 para rutas inexistentes, 400 para JSON mal formado y 500 para lo no controlado, siempre con el mismo formato y sin exponer detalles internos.
+- `statusCode`: código HTTP (la categoría del error).
+- `code`: la causa exacta, legible por máquina (p. ej. `CAMA_OCUPADA`). Los clientes deciden con este campo, nunca comparando `message`.
+- `message`: texto para el usuario. `errors`: detalle por campo cuando `code` es `VALIDACION`.
+
+**Errores** — los servicios lanzan `CustomError.fromCode('CAMA_OCUPADA', 'La cama HAB-201-A ya está ocupada')`; el status sale del catálogo `src/domain/errors/error-codes.ts`. Para agregar un código nuevo, súmalo al catálogo: aparece solo en `/docs`. Un código publicado no se renombra ni se borra. Los controladores responden con `toErrorResponse(error)`. Un middleware global responde 404 (`RUTA_NO_ENCONTRADA`), 400 (`JSON_INVALIDO`) y 500 (`ERROR_INTERNO`) sin exponer detalles internos.
 
 **Validación** — schemas zod en `src/domain/validators/` (importando `z` desde `src/lib/zod`). Se aplican en las rutas con `validateBody`, `validateQuery` o `validateParams`; si fallan, responden 400 con `errors: [{ field, message }]`.
 
-**Documentación** — cada módulo registra sus rutas en `src/docs/paths/<entidad>.docs.ts` reutilizando los mismos schemas zod, así Swagger no se desfasa de la validación.
+**Documentación** — cada módulo registra sus rutas en `src/docs/paths/<modulo>.docs.ts` con `registerEndpoint` (roles, ticket, estado y códigos de error), reutilizando los schemas de `validators` (entrada) y `dtos` (salida). Así Swagger no se desfasa de la validación.
+
+**Nombres** — rutas y campos JSON en español con `snake_case`, igual que la base de datos.
 
 **Logger** — usar `logger` (`src/config/logger.ts`) o `req.log`, nunca `console.log`. Cada petición lleva un `X-Request-Id`. No registrar datos privados de pacientes.
 

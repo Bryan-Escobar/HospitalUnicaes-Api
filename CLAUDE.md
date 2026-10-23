@@ -30,8 +30,8 @@ Express + TypeScript + Prisma (PostgreSQL/Supabase). Layered structure, `routes 
 - **`src/presentation/[Entity]/`** — controller + routes per entity. Routes use a static `routes()` getter, controllers are classes with `public async` arrow methods. No logic in controllers.
 - **`src/services/`** — business logic. Services receive their repository through the constructor (with a default instance).
 - **`src/repositories/`** — data access. The only layer that imports the Prisma client.
-- **`src/domain/`** — interfaces (`interfaces/`), Zod validators (`validators/`), CustomError (`errors/`).
-- **`src/docs/`** — OpenAPI (Swagger) registry; each module documents its routes in `src/docs/paths/<entity>.docs.ts` and is imported from `src/docs/paths/index.ts`.
+- **`src/domain/`** — interfaces (`interfaces/`), Zod request validators (`validators/`), Zod response schemas + DB enums (`dtos/`), CustomError and the error-code catalog (`errors/`).
+- **`src/docs/`** — OpenAPI (Swagger) registry; each module documents its routes in `src/docs/paths/<module>.docs.ts` with `registerEndpoint(...)` and is imported from `src/docs/paths/index.ts`.
 
 All routes are registered in `src/presentation/routes.ts` (the single aggregator). Infra routes live at the root (`/health`); business endpoints go under `/api/...`. Swagger UI is at `/docs`, raw spec at `/docs.json`.
 
@@ -43,12 +43,16 @@ All routes are registered in `src/presentation/routes.ts` (the single aggregator
 
 **DB migrations** — the schema is versioned with Supabase CLI in `supabase/migrations/*.sql` (single source of truth). New change: `supabase migration new <name>`, test with `supabase db reset`, apply with `supabase db push`, then `npx prisma db pull && npx prisma generate`. Never commit keys; `.env.example` lists the variables.
 
+**API contract (HUNI-36)** — `/docs` is the v1 contract for iOS, Android and Web. Paths and JSON fields are Spanish `snake_case` (same as the DB). Roles: `administrador`, `doctor`, `recepcionista` (= Recepcionista/Asistente), `paciente`. When you implement a documented endpoint, match its request/response schemas exactly and flip `estado: 'implementado'` in its `*.docs.ts`; `test/docs/contrato.test.ts` fails if `x-estado` doesn't match the real API. New endpoints are documented with `registerEndpoint` (roles, ticket, business error codes).
+
 **Response format** — every endpoint returns `ApiResponse` from `src/domain/interfaces/api-response.interface.ts`:
 ```typescript
-{ statusCode, success, message, data?, errors? }
+{ statusCode, success: true, message, data }                // success
+{ statusCode, success: false, code, message, errors? }      // error
 ```
+`code` is the machine-readable cause from `src/domain/errors/error-codes.ts` (clients branch on it, never on `message`).
 
-**Error handling** — services throw `CustomError(message, statusCode)`. Controllers always catch with `handleError(error)` from `src/lib/errorHandler.ts` and return the same `ApiResponse` shape with `success: false`. `src/presentation/middlewares/error.middleware.ts` handles unknown routes (404), malformed JSON (400) and anything uncaught (500) without leaking internals.
+**Error handling** — services throw `CustomError.fromCode('CAMA_OCUPADA', 'La cama ... ya está ocupada')` (status comes from the catalog) or the generic factories (`notFound`, `forbidden`, `conflict`...). New business errors: add a code to `ERROR_CODES` (it shows up in `/docs` automatically); never rename or delete a published code. Controllers always catch with `toErrorResponse(error)` from `src/lib/errorHandler.ts` and send it with its `statusCode`. `src/presentation/middlewares/error.middleware.ts` handles unknown routes (404), malformed JSON (400) and anything uncaught (500) without leaking internals.
 
 **Validation** — Zod schemas in `src/domain/validators/[entity].validator.ts`, importing `z` from `src/lib/zod` (zod extended with `.openapi()`), never from `'zod'` directly. Applied in routes via `validateBody(schema)` / `validateQuery(schema)` / `validateParams(schema)`. Validation errors return 400 with an `errors` array of `{ field, message }`. Reuse the same schemas in the docs.
 
