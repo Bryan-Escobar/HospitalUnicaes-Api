@@ -39,3 +39,29 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # Migraciones desde cero + seed idempotente + tests pgTAP (supabase/tests)
+  test-db:
+    name: test-db
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+
+      - name: Levantar Supabase (aplica migraciones y seed desde cero)
+        run: supabase start -x studio,imgproxy,vector,logflare,edge-runtime,supavisor,postgres-meta,mailpit,storage-api,realtime
+
+      - name: Seed idempotente (se aplica dos veces más)
+        run: |
+          for i in 1 2; do
+            psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f supabase/seed.sql
+          done
+
+      - name: Tests de base de datos (pgTAP)
+        run: supabase test db
