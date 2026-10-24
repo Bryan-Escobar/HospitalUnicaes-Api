@@ -34,10 +34,11 @@ registerEndpoint({
     'Supabase Auth (service role) y su perfil con el `rol` indicado (o el `rol_sugerido` del tipo). ' +
     'Sin `email`, el empleado solo aparece en turnos.',
   roles: ['administrador'],
-  ticket: 'HUNI-45',
+  ticket: 'HUNI-38',
+  estado: 'implementado',
   request: { body: jsonBody(crearPersonalBodySchema) },
   response: { status: 201, description: 'Empleado creado', schema: PersonalSchema },
-  errores: { 400: ['REFERENCIA_INVALIDA'], 409: ['EMAIL_EN_USO', 'REGISTRO_DUPLICADO'] },
+  errores: { 400: ['REFERENCIA_INVALIDA', 'SOLICITUD_INVALIDA'], 409: ['EMAIL_EN_USO', 'REGISTRO_DUPLICADO'] },
 });
 
 registerEndpoint({

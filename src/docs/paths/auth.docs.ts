@@ -16,9 +16,10 @@ registerEndpoint({
     'inicia sesión con el SDK de Supabase.',
   roles: 'publico',
   ticket: 'HUNI-38',
+  estado: 'implementado',
   request: { body: jsonBody(registroPacienteBodySchema) },
   response: { status: 201, description: 'Paciente registrado', schema: MeSchema },
-  errores: { 409: ['EMAIL_EN_USO', 'REGISTRO_DUPLICADO'] },
+  errores: { 400: ['SOLICITUD_INVALIDA'], 409: ['EMAIL_EN_USO', 'REGISTRO_DUPLICADO'] },
 });
 
 registerEndpoint({
@@ -30,6 +31,7 @@ registerEndpoint({
     'Perfil, rol y, según el caso, el paciente o el registro de personal asociado. Úsalo al iniciar la app para decidir la navegación por rol.',
   roles: [...ROLES],
   ticket: 'HUNI-38',
+  estado: 'implementado',
   response: { description: 'Usuario autenticado', schema: MeSchema },
   errores: { 403: ['PERFIL_INCOMPLETO'] },
 });
@@ -42,6 +44,8 @@ registerEndpoint({
   description: 'Solo datos de contacto. El rol y el correo no se cambian aquí.',
   roles: [...ROLES],
   ticket: 'HUNI-38',
+  estado: 'implementado',
   request: { body: jsonBody(actualizarMiPerfilBodySchema) },
   response: { description: 'Perfil actualizado', schema: PerfilSchema },
+  errores: { 400: ['SOLICITUD_INVALIDA'] },
 });

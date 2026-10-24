@@ -125,7 +125,7 @@ export const registerEndpoint = (doc: EndpointDoc) => {
   if (doc.request?.body) add(400, 'JSON_INVALIDO');
   if (!publico) {
     add(401, 'NO_AUTENTICADO');
-    add(403, 'ACCESO_DENEGADO');
+    add(403, 'ACCESO_DENEGADO', 'CUENTA_INACTIVA');
   }
   if (doc.path.includes('{')) add(404, 'NO_ENCONTRADO');
   Object.entries(doc.errores ?? {}).forEach(([status, codes]) => add(Number(status) as HttpError, ...(codes ?? [])));
