@@ -12,7 +12,8 @@ registerEndpoint({
   summary: 'Registrar paciente (autoservicio)',
   description:
     'Crea la cuenta en Supabase Auth, su perfil con rol `paciente`, el paciente y su expediente, en una sola ' +
-    'operación. El rol no se acepta en el body. Después, el cliente inicia sesión con el SDK de Supabase.',
+    'operación. El rol no se acepta en el body. `alergias` (opcional) queda en el expediente. Después, el cliente ' +
+    'inicia sesión con el SDK de Supabase.',
   roles: 'publico',
   ticket: 'HUNI-38',
   request: { body: jsonBody(registroPacienteBodySchema) },

@@ -15,10 +15,17 @@ export const datosPacienteSchema = z.object({
 });
 
 // El rol NO se recibe: el registro público siempre crea un paciente (HUNI-38).
+// `alergias` se guarda en expedientes.alergias al crear el expediente (HUNI-96).
 export const registroPacienteBodySchema = datosPacienteSchema
   .extend({
     email: z.email().openapi({ example: 'carlos.martinez@correo.com' }),
     password: passwordSchema,
+    alergias: z
+      .string()
+      .trim()
+      .max(2000)
+      .optional()
+      .openapi({ example: 'Penicilina', description: 'Se guarda en el expediente del paciente.' }),
   })
   .openapi('RegistroPacienteBody');
 
