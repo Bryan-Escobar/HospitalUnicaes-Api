@@ -106,6 +106,17 @@ Disponible ⇄ En Mantenimiento
 - Debe mantener una **bitácora** de las emergencias atendidas, consultable con **filtros** (fecha, tipo, estado, etc.).
 - "Tiempo real": los cambios de estado deben verse en las 3 plataformas sin recargar manualmente (WebSockets, Realtime de la BD, SSE o polling corto). **[POR DEFINIR]** mecanismo.
 
+### 3.6 Inventario: lotes, activos y proveedores (cambio de alcance 2026-10-24)
+- **Medicamentos e insumos se controlan por lote.** Cada lote tiene número de lote, **fecha de caducidad** y cantidad. El stock de un ítem es la suma de sus lotes. Se entrega por unidades: una salida de 1 unidad descuenta 1 del lote elegido, nunca el lote completo.
+- **Equipos se controlan por número de serie** (activos), uno por uno. Estados: `disponible`, `en_uso`, `en_mantenimiento`, `dado_de_baja` (definitivo). Ubicación en texto libre. Sin garantía ni fecha de compra: solo el registro del activo.
+- **Proveedores:** nombre, NIT, NRC, contacto, teléfono, correo y dirección. No se borran, se desactivan. Toda entrada (lote o activo) se registra con su proveedor activo. Sin órdenes de compra.
+- **Salidas:** el usuario elige el lote; el cliente los muestra ordenados **FEFO** (primero el que vence antes). Un lote **vencido no admite entradas ni salidas**; solo un ajuste para descartarlo.
+- **Alertas de caducidad:** lotes con existencias que vencen en ≤ 15 días y en 16–30 días (vista `v_lotes_por_vencer` y contadores en el dashboard). Cómo se muestran lo decide cada cliente.
+- **Concurrencia:** dos salidas simultáneas del mismo lote no pueden dejarlo en negativo (lo garantiza la BD).
+- **Recetas e inventario van separados:** la receta no descuenta stock, porque el paciente puede comprar sus medicamentos donde quiera.
+- La **ambulancia no es un activo del inventario**: sigue en su propio módulo (§3.5).
+- **Quién mueve el inventario:** solo el **administrador**, desde la Web, registra entradas, salidas, ajustes, activos y proveedores. No hay rol de farmacia; doctor y recepcionista solo consultan existencias.
+
 ---
 
 ## 4. Arquitectura
@@ -214,7 +225,11 @@ Entidades mínimas que el documento exige: Doctores, Pacientes, Turnos, Habitaci
 | `Habitacion` | id, código (`VIP-301`… / `HAB-201`…), planta (2 o 3), tipo (`VIP`, `SEMIPRIVADA`), capacidad (1 o 2) |
 | `Cama` | id, habitacion_id, número |
 | `AsignacionCama` | id, cama_id, paciente_id, fecha_ingreso, fecha_alta, activa (única activa por cama y por paciente) |
-| `Inventario` / `Recurso` | id, nombre, categoría, cantidad, ubicación |
+| `Inventario` / `Recurso` | id, código, nombre, categoría (`medicamento`, `insumo`, `equipo`), unidad, stock_actual (calculado), stock_mínimo, ubicación |
+| `Proveedor` | id, nombre, NIT, NRC, contacto, teléfono, email, dirección, activo |
+| `LoteInventario` | id, item_id, número_lote, fecha_caducidad, cantidad_actual |
+| `MovimientoInventario` | id, item_id, lote_id, tipo (`entrada`, `salida`, `ajuste`), cantidad, proveedor_id (entradas), motivo, registrado_por |
+| `Activo` | id, item_id, número_serie, proveedor_id, estado, ubicación, fecha_ingreso, notas |
 | `Ambulancia` | id (único registro), placa, estado (`DISPONIBLE`, `EN_SERVICIO`, `EN_MANTENIMIENTO`) |
 | `ServicioAmbulancia` (bitácora) | id, ambulancia_id, solicitado_por, paciente_id (opcional), tipo_emergencia, origen, destino, hora_solicitud, hora_despacho, hora_cierre, notas |
 | `Aviso` | id, título, contenido, público, fecha |
@@ -239,6 +254,8 @@ Leyenda: **C** crear · **R** leer · **U** actualizar · **D** eliminar · *(pr
 | Habitaciones: ocupación agregada | R | R | R | R | R |
 | Habitaciones: asignación por paciente | CRUD | R (tratante) | C, R, U | R (propio) | — |
 | Inventario / recursos | CRUD | R | R | — | — |
+| Inventario: entradas, salidas y activos | CRUD (Web) | — | — | — | — |
+| Proveedores | CRUD | — | — | — | — |
 | Ambulancia: estado | R, U | R, solicitar | R, solicitar / despachar | solicitar **[POR DEFINIR]** | — |
 | Ambulancia: bitácora | R (filtros) | R | R | — | — |
 | Avisos generales | CRUD | R | R | R | R |
@@ -327,6 +344,7 @@ Leyenda: **C** crear · **R** leer · **U** actualizar · **D** eliminar · *(pr
 | 2026-10-21 | BD en Supabase (PostgreSQL 17, proyecto "Hospital UNICAES") con Auth email/contraseña. El esquema se versiona con Supabase CLI (`supabase/migrations`); Prisma solo como cliente (`db pull` + `generate`), sin `prisma migrate` (HUNI-16) | Jimmy |
 | 2026-10-23 | Contrato de API v1 en `/docs` (OpenAPI 3). Rutas y campos JSON en español con `snake_case`. Errores con `code` legible por máquina además del `statusCode` (catálogo en `src/domain/errors/error-codes.ts`). Enum `rol_usuario` reducido a 4 roles: `administrador`, `doctor`, `recepcionista` (= Recepcionista/Asistente), `paciente` (HUNI-36, HUNI-95) | Jimmy |
 | 2026-10-24 | Esquema completo del DER (HUNI-37): tipos de personal como catálogo editable (`tipos_personal`, con `rol_sugerido`), personal sin cuenta (`personal.perfil_id` opcional), pacientes desactivables (`activo`), consultas que se cierran (`cerrada_en`, la BD impide editarlas), turnos sin solape y citas con `duracion_minutos` sin doble reserva (exclusion constraints), vista `v_dashboard_summary`. Seed idempotente con usuarios demo (contraseña en el repo por decisión del equipo; cambiarla antes de la demo final) | Jimmy |
+| 2026-10-24 | Cambio de alcance del inventario (§3.6): medicamentos/insumos por lote con caducidad, equipos por número de serie con estado, proveedores desactivables, entradas con proveedor, salida bloqueada para lotes vencidos, alertas a 15 y 30 días. Recetas e inventario separados; la ambulancia queda fuera del inventario. Solo el administrador (Web) registra movimientos, activos y proveedores; sin rol de farmacia (HUNI-97) | Jimmy |
 
 ## 12. Glosario
 - **VIP:** habitación individual de la 3ª planta.
