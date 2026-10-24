@@ -39,7 +39,7 @@ registerEndpoint({
   ticket: 'HUNI-62',
   request: { body: jsonBody(crearOrdenBodySchema) },
   response: { status: 201, description: 'Orden creada', schema: OrdenLaboratorioSchema },
-  errores: { 400: ['REFERENCIA_INVALIDA'] },
+  errores: { 400: ['REFERENCIA_INVALIDA'], 409: ['CONSULTA_CERRADA'] },
 });
 
 registerEndpoint({

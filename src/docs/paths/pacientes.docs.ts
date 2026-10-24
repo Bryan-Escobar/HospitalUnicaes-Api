@@ -59,3 +59,15 @@ registerEndpoint({
   response: { description: 'Paciente actualizado', schema: PacienteSchema },
   errores: { 409: ['REGISTRO_DUPLICADO'] },
 });
+
+registerEndpoint({
+  method: 'delete',
+  path: '/api/pacientes/{id}',
+  tag: TAG,
+  summary: 'Desactivar paciente',
+  description: 'Desactivación lógica (`activo = false`): conserva su expediente e historial.',
+  roles: ['administrador', 'recepcionista'],
+  ticket: 'HUNI-45',
+  request: { params: idParamSchema },
+  response: { description: 'Paciente desactivado', schema: PacienteSchema },
+});

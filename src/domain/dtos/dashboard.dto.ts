@@ -1,6 +1,6 @@
 import { z } from '../../lib/zod';
 import { fechaHora, uuidOut } from './common.dto';
-import { EstadoAmbulanciaSchema, EstadoCitaSchema, TipoPersonalSchema } from './enums';
+import { EstadoAmbulanciaSchema, EstadoCitaSchema } from './enums';
 import { OcupacionAgregadaSchema } from './habitaciones.dto';
 
 export const ResumenDashboardSchema = z
@@ -8,7 +8,7 @@ export const ResumenDashboardSchema = z
     ocupacion: OcupacionAgregadaSchema,
     personal_de_turno: z.object({
       total: z.number().int().openapi({ example: 14 }),
-      por_tipo: z.array(z.object({ tipo: TipoPersonalSchema, cantidad: z.number().int() })),
+      por_tipo: z.array(z.object({ tipo: z.string().openapi({ example: 'Enfermero/a' }), cantidad: z.number().int() })),
     }),
     ambulancia: z.object({ estado: EstadoAmbulanciaSchema, solicitud_activa_id: uuidOut.nullable() }),
     citas_hoy: z.object({
@@ -31,7 +31,7 @@ export const MedicoDeTurnoSchema = z
   .object({
     nombres: z.string().openapi({ example: 'Ana María' }),
     apellidos: z.string().openapi({ example: 'López Hernández' }),
-    tipo: TipoPersonalSchema,
+    tipo: z.string().openapi({ description: 'Nombre del tipo de personal', example: 'Doctor' }),
     especialidad: z.string().nullable().openapi({ example: 'Pediatría' }),
     area: z.string().openapi({ example: 'Emergencia' }),
     hora_inicio: z.iso.time().openapi({ example: '07:00:00' }),

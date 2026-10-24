@@ -38,6 +38,9 @@ export const ERROR_CODES = {
   SIN_CAMAS_DISPONIBLES: { status: 409, descripcion: 'No hay camas libres del tipo solicitado.' },
   HOSPITALIZACION_FINALIZADA: { status: 409, descripcion: 'La hospitalización ya tiene alta.' },
 
+  // Consultas (HUNI-57)
+  CONSULTA_CERRADA: { status: 409, descripcion: 'La consulta ya está cerrada y no se puede modificar.' },
+
   // Laboratorio (HUNI-62)
   TRANSICION_INVALIDA: {
     status: 422,

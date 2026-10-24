@@ -28,6 +28,22 @@ describe('Errores estándar', () => {
     expect(handleError({ code: prismaCode })).toMatchObject({ statusCode, code });
   });
 
+  test('traduce los errores de negocio que lanza un trigger de la BD', () => {
+    const errorPrisma = new Error(
+      'Raw query failed. Code: `P0001`. Message: `CONSULTA_CERRADA: la consulta 4444 ya está cerrada`',
+    );
+    expect(toErrorResponse(errorPrisma)).toEqual({
+      statusCode: 409,
+      success: false,
+      code: 'CONSULTA_CERRADA',
+      message: ERROR_CODES.CONSULTA_CERRADA.descripcion,
+    });
+  });
+
+  test('un texto en mayúsculas que no es del catálogo sigue siendo error interno', () => {
+    expect(handleError(new Error('FOO_BAR: algo raro'))).toMatchObject({ statusCode: 500, code: 'ERROR_INTERNO' });
+  });
+
   test('un error desconocido no filtra detalles internos', () => {
     expect(toErrorResponse(new Error('password=1234 en la conexión'))).toEqual({
       statusCode: 500,

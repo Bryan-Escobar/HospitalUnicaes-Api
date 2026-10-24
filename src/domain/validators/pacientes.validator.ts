@@ -1,6 +1,6 @@
 import { z } from '../../lib/zod';
 import { datosPacienteSchema } from './auth.validator';
-import { paginacionQuerySchema } from './common.validator';
+import { booleanQuery, paginacionQuerySchema } from './common.validator';
 
 // Paciente registrado en recepción (sin cuenta). Se crea también su expediente.
 export const crearPacienteBodySchema = datosPacienteSchema.openapi('CrearPacienteBody');
@@ -14,6 +14,7 @@ export const listarPacientesQuerySchema = paginacionQuerySchema.extend({
     .min(2)
     .optional()
     .openapi({ description: 'Nombre, apellido o documento', example: 'martínez' }),
+  activo: booleanQuery.optional().openapi({ description: 'Por defecto solo activos (`true`)', example: 'true' }),
 });
 
 export const actualizarExpedienteBodySchema = z

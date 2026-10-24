@@ -63,11 +63,12 @@ registerEndpoint({
   path: '/api/consultas/{id}',
   tag: TAG,
   summary: 'Editar consulta',
-  description: 'Solo el doctor que la registró.',
+  description: 'Solo el doctor que la registró y mientras esté abierta.',
   roles: ['doctor'],
   ticket: 'HUNI-57',
   request: { params: idParamSchema, body: jsonBody(actualizarConsultaBodySchema) },
   response: { description: 'Consulta actualizada', schema: ConsultaSchema },
+  errores: { 409: ['CONSULTA_CERRADA'] },
 });
 
 registerEndpoint({
@@ -79,6 +80,7 @@ registerEndpoint({
   ticket: 'HUNI-57',
   request: { params: idParamSchema, body: jsonBody(crearDiagnosticoBodySchema) },
   response: { status: 201, description: 'Diagnóstico agregado', schema: DiagnosticoSchema },
+  errores: { 409: ['CONSULTA_CERRADA'] },
 });
 
 registerEndpoint({
@@ -90,7 +92,7 @@ registerEndpoint({
   ticket: 'HUNI-57',
   request: { params: idParamSchema, body: jsonBody(crearRecetaBodySchema) },
   response: { status: 201, description: 'Receta emitida', schema: RecetaSchema },
-  errores: { 400: ['REFERENCIA_INVALIDA'] },
+  errores: { 400: ['REFERENCIA_INVALIDA'], 409: ['CONSULTA_CERRADA'] },
 });
 
 registerEndpoint({
@@ -115,4 +117,19 @@ registerEndpoint({
   ticket: 'HUNI-57',
   request: { params: idParamSchema, body: jsonBody(actualizarExpedienteBodySchema) },
   response: { description: 'Expediente actualizado', schema: ExpedienteSchema },
+});
+
+registerEndpoint({
+  method: 'post',
+  path: '/api/consultas/{id}/cerrar',
+  tag: TAG,
+  summary: 'Cerrar consulta',
+  description:
+    'Fija `cerrada_en`. Desde ese momento la consulta, sus diagnósticos, recetas y órdenes de laboratorio ya no se ' +
+    'editan (la base de datos lo impide). Solo el doctor que la registró.',
+  roles: ['doctor'],
+  ticket: 'HUNI-57',
+  request: { params: idParamSchema },
+  response: { description: 'Consulta cerrada', schema: ConsultaSchema },
+  errores: { 409: ['CONSULTA_CERRADA'] },
 });

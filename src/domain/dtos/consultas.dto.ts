@@ -47,6 +47,7 @@ export const ConsultaSchema = z
     signos_vitales: signosVitalesSchema.nullable(),
     examen_fisico: z.string().nullable(),
     notas: z.string().nullable(),
+    cerrada_en: fechaHora.nullable().openapi({ description: 'null = abierta. Cerrada = ya no se edita.' }),
   })
   .openapi('Consulta', { description: 'Privado: solo médico tratante, el propio paciente y administración.' });
 
