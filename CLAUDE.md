@@ -43,6 +43,8 @@ All routes are registered in `src/presentation/routes.ts` (the single aggregator
 
 **DB migrations** — the schema is versioned with Supabase CLI in `supabase/migrations/*.sql` (single source of truth). New change: `supabase migration new <name>`, test with `supabase db reset`, apply with `supabase db push`, then `npx prisma db pull && npx prisma generate`. Never commit keys; `.env.example` lists the variables.
 
+**Seed and DB tests** — `supabase/seed.sql` must stay idempotent (`ON CONFLICT` / `WHERE NOT EXISTS`; use `WHERE NOT EXISTS` on `camas` because its capacity trigger runs before `ON CONFLICT`). Database rules (exclusion constraints, triggers, the `v_dashboard_summary` view) are tested with pgTAP in `supabase/tests/database/*.test.sql` via `supabase test db`; CI job `test-db` runs migrations from scratch, the seed three times and the pgTAP tests. Business rules enforced by DB triggers raise `'CODE: detail'` with a code from `ERROR_CODES`; `handleError` maps it to the standard error response.
+
 **API contract (HUNI-36)** — `/docs` is the v1 contract for iOS, Android and Web. Paths and JSON fields are Spanish `snake_case` (same as the DB). Roles: `administrador`, `doctor`, `recepcionista` (= Recepcionista/Asistente), `paciente`. When you implement a documented endpoint, match its request/response schemas exactly and flip `estado: 'implementado'` in its `*.docs.ts`; `test/docs/contrato.test.ts` fails if `x-estado` doesn't match the real API. New endpoints are documented with `registerEndpoint` (roles, ticket, business error codes).
 
 **Response format** — every endpoint returns `ApiResponse` from `src/domain/interfaces/api-response.interface.ts`:

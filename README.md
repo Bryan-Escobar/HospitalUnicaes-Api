@@ -59,6 +59,8 @@ El esquema de la base de datos se versiona con la **Supabase CLI** en `supabase/
 - Proyecto remoto: **Hospital UNICAES** (ref `idhxyneffsmyekrvpyfg`, Postgres 17).
 - Auth: email/contraseña habilitado (mínimo 8 caracteres con mayúsculas, minúsculas y dígitos; ver `supabase/config.toml`).
 - Migración inicial: `20261022011429_esquema_inicial.sql`, capturada con `supabase db pull` desde el proyecto remoto (tablas del ERD, enums, triggers e índices).
+- `20261023222640_roles_cuatro.sql`: 4 roles (HUNI-36).
+- `20261024164628_der_completo.sql` (HUNI-37): catálogo editable de tipos de personal, personal sin cuenta, pacientes desactivables, consultas que se cierran, turnos sin solape y citas sin doble reserva (exclusion constraints), y la vista `v_dashboard_summary`.
 
 ### Configuración inicial (una vez por máquina)
 
@@ -81,8 +83,40 @@ npx prisma db pull && npx prisma generate   # actualiza el cliente de Prisma
 ```
 
 > Nunca cambies el esquema desde el Dashboard sin crear su migración. Si alguien lo hizo, captura el cambio con `supabase db pull <descripcion>`.
->
-> Los datos semilla (11 habitaciones, 17 camas, 1 ambulancia, usuarios demo) se agregan en HUNI-37 (`supabase/seed.sql`).
+
+### Datos semilla (`supabase/seed.sql`)
+
+Es **idempotente**: se puede correr las veces que sea sin duplicar datos. Carga:
+
+- 11 habitaciones: `VIP-301`…`VIP-305` (3ª planta, 1 cama) y `HAB-201`…`HAB-206` (2ª planta, 2 camas) → 17 camas.
+- La única ambulancia (`AMB-001`, disponible).
+- Catálogos de especialidades y exámenes de laboratorio.
+- Un usuario demo por rol, más una enfermera sin cuenta (solo aparece en turnos).
+
+```bash
+supabase db reset                  # local: migraciones + seed desde cero
+supabase db push --include-seed    # remoto: migraciones pendientes + seed
+```
+
+| Rol | Email | Contraseña |
+|---|---|---|
+| administrador | `administrador@demo.hospitalunicaes.test` | `HospitalDemo2026` |
+| doctor | `doctor@demo.hospitalunicaes.test` | `HospitalDemo2026` |
+| recepcionista | `recepcion@demo.hospitalunicaes.test` | `HospitalDemo2026` |
+| paciente | `paciente@demo.hospitalunicaes.test` | `HospitalDemo2026` |
+
+> ⚠ Esta contraseña es pública (está en el repositorio). Cámbiala en el proyecto remoto antes de la demo final.
+
+### Tests de base de datos
+
+Tests pgTAP en `supabase/tests/database/` (seed, turnos sin solape, citas sin doble reserva, consultas cerradas y la vista del dashboard). Requieren Supabase local:
+
+```bash
+supabase start
+supabase test db
+```
+
+El CI los corre en el job `test-db`, que además aplica el seed tres veces para comprobar que es idempotente.
 
 ## Scripts
 
