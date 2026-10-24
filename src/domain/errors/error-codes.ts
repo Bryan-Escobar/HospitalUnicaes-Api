@@ -57,6 +57,23 @@ export const ERROR_CODES = {
     status: 422,
     descripcion: 'No se puede pasar a mantenimiento sin cerrar antes el servicio en curso.',
   },
+
+  // Inventario: lotes, activos y proveedores (HUNI-97)
+  TIPO_CONTROL_INVALIDO: {
+    status: 422,
+    descripcion: 'Los equipos se controlan por número de serie y los medicamentos/insumos por lote.',
+  },
+  LOTE_VENCIDO: {
+    status: 422,
+    descripcion: 'El lote ya venció: no admite entradas ni salidas, solo un ajuste para descartarlo.',
+  },
+  LOTE_CADUCIDAD_DISTINTA: {
+    status: 409,
+    descripcion: 'Ese número de lote ya existe con otra fecha de caducidad.',
+  },
+  STOCK_INSUFICIENTE: { status: 409, descripcion: 'El lote no tiene unidades suficientes para la salida.' },
+  PROVEEDOR_INVALIDO: { status: 422, descripcion: 'La entrada o el activo necesita un proveedor activo.' },
+  ACTIVO_DADO_DE_BAJA: { status: 409, descripcion: 'El activo está dado de baja y ya no se puede modificar.' },
 } as const satisfies Record<string, { status: number; descripcion: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;
