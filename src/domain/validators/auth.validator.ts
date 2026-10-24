@@ -38,3 +38,6 @@ export const actualizarMiPerfilBodySchema = z
   })
   .partial()
   .openapi('ActualizarMiPerfilBody');
+
+export type RegistroPacienteBody = z.infer<typeof registroPacienteBodySchema>;
+export type ActualizarMiPerfilBody = z.infer<typeof actualizarMiPerfilBodySchema>;
