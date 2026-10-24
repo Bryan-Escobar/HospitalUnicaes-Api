@@ -144,3 +144,51 @@ select pa.id, 'EXP-2026-00001', 'O+', 'Penicilina'
 from public.pacientes pa
 where pa.perfil_id = '11111111-1111-4111-8111-000000000004'
 on conflict (paciente_id) do nothing;
+
+-- -----------------------------------------------------------------------------
+-- Inventario demo (HUNI-97): proveedores, ítems, lotes con caducidad y equipos
+-- Las fechas de los lotes son relativas al día del seed para que el demo
+-- tenga alertas de 15 y 30 días. Los nombres son ficticios.
+-- -----------------------------------------------------------------------------
+insert into public.proveedores (nombre, nit, nrc, contacto, telefono, email, direccion) values
+  ('Distribuidora Médica Demo, S.A. de C.V.', '0614-010190-101-0', '100001-1', 'Sofía Alvarado', '+503 2200-0001',
+   'ventas@distribuidora-demo.test', 'San Salvador'),
+  ('Equipos Hospitalarios Demo, S.A. de C.V.', '0614-020290-102-1', '100002-2', 'Javier Molina', '+503 2200-0002',
+   'contacto@equipos-demo.test', 'Santa Ana')
+on conflict (nit) do nothing;
+
+insert into public.inventario_items (codigo, nombre, categoria, unidad_medida, stock_minimo, ubicacion) values
+  ('MED-0001', 'Paracetamol 500 mg',            'medicamento', 'tableta', 200, 'Farmacia'),
+  ('MED-0002', 'Amoxicilina 500 mg',            'medicamento', 'cápsula', 100, 'Farmacia'),
+  ('INS-0001', 'Jeringa descartable 5 ml',      'insumo',      'unidad',  150, 'Bodega central'),
+  ('INS-0002', 'Guantes de nitrilo talla M',    'insumo',      'caja',    20,  'Bodega central'),
+  ('EQP-0001', 'Monitor de signos vitales',     'equipo',      'unidad',  2,   'Biomédica'),
+  ('EQP-0002', 'Bomba de infusión volumétrica', 'equipo',      'unidad',  1,   'Biomédica')
+on conflict (codigo) do nothing;
+
+-- Entradas por lote: solo la primera vez (si el lote ya existe no se repite la entrada)
+select public.registrar_entrada_lote(i.id, l.lote, public.hoy_local() + l.dias, l.cantidad, p.id,
+                                     '11111111-1111-4111-8111-000000000001', 'Carga inicial (seed)')
+from (values
+  ('MED-0001', 'PCT-2401', 10,  120),   -- vence en 10 días → alerta de 15 días
+  ('MED-0001', 'PCT-2402', 400, 300),
+  ('MED-0002', 'AMX-2403', 25,  80),    -- vence en 25 días → alerta de 30 días
+  ('INS-0001', 'JER-2404', 720, 500),
+  ('INS-0002', 'GUA-2405', 540, 15)     -- debajo del mínimo
+) as l (codigo, lote, dias, cantidad)
+join public.inventario_items i on i.codigo = l.codigo
+join public.proveedores p on p.nit = '0614-010190-101-0'
+where exists (select 1 from public.perfiles pf where pf.id = '11111111-1111-4111-8111-000000000001')
+  and not exists (select 1 from public.lotes_inventario x where x.item_id = i.id and x.numero_lote = l.lote);
+
+insert into public.activos (item_id, numero_serie, proveedor_id, estado, ubicacion, registrado_por)
+select i.id, a.serie, p.id, a.estado::public.estado_activo, a.ubicacion, pf.id
+from (values
+  ('EQP-0001', 'MSV-10001', 'en_uso',           'VIP-301'),
+  ('EQP-0001', 'MSV-10002', 'disponible',       'Biomédica'),
+  ('EQP-0002', 'BIF-20001', 'en_mantenimiento', 'Taller biomédico')
+) as a (codigo, serie, estado, ubicacion)
+join public.inventario_items i on i.codigo = a.codigo
+join public.proveedores p on p.nit = '0614-020290-102-1'
+join public.perfiles pf on pf.id = '11111111-1111-4111-8111-000000000001'
+on conflict (item_id, numero_serie) do nothing;

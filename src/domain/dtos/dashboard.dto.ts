@@ -23,6 +23,13 @@ export const ResumenDashboardSchema = z
       .number()
       .int()
       .openapi({ description: 'Ítems con stock por debajo del mínimo', example: 3 }),
+    lotes_por_vencer: z
+      .object({
+        vencidos: z.number().int().openapi({ description: 'Lotes con existencias ya vencidos', example: 0 }),
+        en_15_dias: z.number().int().openapi({ description: 'Vencen en 0 a 15 días', example: 1 }),
+        en_30_dias: z.number().int().openapi({ description: 'Vencen en 16 a 30 días', example: 2 }),
+      })
+      .openapi({ description: 'Alertas de caducidad de lotes con existencias' }),
     generado_en: fechaHora,
   })
   .openapi('ResumenDashboard');
