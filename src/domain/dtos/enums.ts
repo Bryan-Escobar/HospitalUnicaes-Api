@@ -9,10 +9,6 @@ export const RolSchema = z.enum(ROLES).openapi('Rol', {
   description: 'Rol del usuario (HUNI-95). `recepcionista` = Recepcionista/Asistente, incluye enfermeros.',
 });
 
-export const TipoPersonalSchema = z
-  .enum(['doctor', 'enfermero', 'alergista', 'emergencista', 'asistente', 'recepcionista', 'administrativo'])
-  .openapi('TipoPersonal', { description: 'Tipo de empleado. Se usa en turnos y filtros; no da permisos.' });
-
 export const SexoSchema = z.enum(['masculino', 'femenino', 'otro']).openapi('Sexo');
 
 export const TipoHabitacionSchema = z

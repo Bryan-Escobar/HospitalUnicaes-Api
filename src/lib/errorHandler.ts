@@ -1,5 +1,6 @@
 import { ZodError } from 'zod';
 import { CustomError } from '../domain/errors/CustomError';
+import { ERROR_CODES, ErrorCode } from '../domain/errors/error-codes';
 import { ErrorHandlerInterface } from '../domain/errors/errorHandler.interface';
 import { ApiResponse } from '../domain/interfaces';
 
@@ -24,6 +25,14 @@ export const handleError = (error: unknown): ErrorHandlerInterface => {
       case 'P2025':
         return { statusCode: 404, code: 'NO_ENCONTRADO', message: 'No se encontró el registro solicitado' };
     }
+  }
+
+  // Reglas que valida la BD con triggers: lanzan 'CODIGO: detalle' (p. ej. CONSULTA_CERRADA).
+  // Se responde con la descripción del catálogo, sin reenviar el texto de la BD.
+  const dbCode = error instanceof Error ? /\b([A-Z][A-Z_]{2,}):/.exec(error.message)?.[1] : undefined;
+  if (dbCode && dbCode in ERROR_CODES) {
+    const code = dbCode as ErrorCode;
+    return { statusCode: ERROR_CODES[code].status, code, message: ERROR_CODES[code].descripcion };
   }
 
   return { statusCode: 500, code: 'ERROR_INTERNO', message: 'Error interno del servidor' };

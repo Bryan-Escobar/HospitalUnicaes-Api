@@ -18,6 +18,7 @@ export const PacienteSchema = z
     contacto_emergencia: z.string().nullable(),
     telefono_emergencia: z.string().nullable(),
     numero_expediente: z.string().openapi({ example: 'EXP-2026-00015' }),
+    activo: z.boolean().openapi({ description: 'false = desactivado (se conserva su historial)' }),
     created_at: fechaHora,
   })
   .openapi('Paciente', {

@@ -1,6 +1,7 @@
 import { z } from '../../lib/zod';
 import { fechaHora, uuidOut } from './common.dto';
-import { RolSchema, TipoPersonalSchema } from './enums';
+import { RolSchema } from './enums';
+import { TipoPersonalResumenSchema } from './personal.dto';
 
 export const PerfilSchema = z
   .object({
@@ -21,7 +22,7 @@ export const MeSchema = PerfilSchema.extend({
   personal: z
     .object({
       id: uuidOut,
-      tipo: TipoPersonalSchema,
+      tipo: TipoPersonalResumenSchema,
       especialidad: z.string().nullable().openapi({ example: 'Pediatría' }),
       codigo_empleado: z.string().openapi({ example: 'EMP-0042' }),
     })

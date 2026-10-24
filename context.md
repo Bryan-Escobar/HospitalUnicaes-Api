@@ -326,6 +326,7 @@ Leyenda: **C** crear · **R** leer · **U** actualizar · **D** eliminar · *(pr
 | 2026-10-17 | Stack: Node.js + TypeScript + Prisma (backend), React + Vite (web), Kotlin en Android Studio (Android), Swift en Xcode (iOS) | Equipo |
 | 2026-10-21 | BD en Supabase (PostgreSQL 17, proyecto "Hospital UNICAES") con Auth email/contraseña. El esquema se versiona con Supabase CLI (`supabase/migrations`); Prisma solo como cliente (`db pull` + `generate`), sin `prisma migrate` (HUNI-16) | Jimmy |
 | 2026-10-23 | Contrato de API v1 en `/docs` (OpenAPI 3). Rutas y campos JSON en español con `snake_case`. Errores con `code` legible por máquina además del `statusCode` (catálogo en `src/domain/errors/error-codes.ts`). Enum `rol_usuario` reducido a 4 roles: `administrador`, `doctor`, `recepcionista` (= Recepcionista/Asistente), `paciente` (HUNI-36, HUNI-95) | Jimmy |
+| 2026-10-24 | Esquema completo del DER (HUNI-37): tipos de personal como catálogo editable (`tipos_personal`, con `rol_sugerido`), personal sin cuenta (`personal.perfil_id` opcional), pacientes desactivables (`activo`), consultas que se cierran (`cerrada_en`, la BD impide editarlas), turnos sin solape y citas con `duracion_minutos` sin doble reserva (exclusion constraints), vista `v_dashboard_summary`. Seed idempotente con usuarios demo (contraseña en el repo por decisión del equipo; cambiarla antes de la demo final) | Jimmy |
 
 ## 12. Glosario
 - **VIP:** habitación individual de la 3ª planta.
