@@ -18,8 +18,10 @@ registerEndpoint({
     'Paginado y con búsqueda. Un `doctor` solo ve a los pacientes que atiende (consulta, cita u hospitalización).',
   roles: ['administrador', 'recepcionista', 'doctor'],
   ticket: 'HUNI-45',
+  estado: 'implementado',
   request: { query: listarPacientesQuerySchema },
   response: { description: 'Página de pacientes', schema: paginado(PacienteSchema) },
+  errores: { 403: ['PERFIL_INCOMPLETO'] },
 });
 
 registerEndpoint({
@@ -30,6 +32,7 @@ registerEndpoint({
   description: 'Para pacientes sin cuenta. Crea también su expediente con número correlativo.',
   roles: ['administrador', 'recepcionista'],
   ticket: 'HUNI-45',
+  estado: 'implementado',
   request: { body: jsonBody(crearPacienteBodySchema) },
   response: { status: 201, description: 'Paciente creado', schema: PacienteSchema },
   errores: { 409: ['REGISTRO_DUPLICADO'] },
@@ -43,6 +46,7 @@ registerEndpoint({
   description: 'Un `paciente` solo puede pedir su propio id; un `doctor`, solo pacientes que atiende.',
   roles: ['administrador', 'recepcionista', 'doctor', 'paciente'],
   ticket: 'HUNI-45',
+  estado: 'implementado',
   request: { params: idParamSchema },
   response: { description: 'Paciente', schema: PacienteSchema },
 });
@@ -52,12 +56,15 @@ registerEndpoint({
   path: '/api/pacientes/{id}',
   tag: TAG,
   summary: 'Actualizar datos personales',
-  description: 'Un `paciente` solo puede editar sus propios datos.',
+  description:
+    'Un `paciente` solo puede editar sus propios datos y no puede enviar `activo`. ' +
+    'Administración y recepción pueden reactivar con `activo: true` (también reactiva su cuenta).',
   roles: ['administrador', 'recepcionista', 'paciente'],
   ticket: 'HUNI-45',
+  estado: 'implementado',
   request: { params: idParamSchema, body: jsonBody(actualizarPacienteBodySchema) },
   response: { description: 'Paciente actualizado', schema: PacienteSchema },
-  errores: { 409: ['REGISTRO_DUPLICADO'] },
+  errores: { 400: ['SOLICITUD_INVALIDA'], 409: ['REGISTRO_DUPLICADO'] },
 });
 
 registerEndpoint({
@@ -65,9 +72,12 @@ registerEndpoint({
   path: '/api/pacientes/{id}',
   tag: TAG,
   summary: 'Desactivar paciente',
-  description: 'Desactivación lógica (`activo = false`): conserva su expediente e historial.',
+  description:
+    'Desactivación lógica (`activo = false`): conserva su expediente e historial. Si tiene cuenta, ' +
+    'también se desactiva (su token responde 403 `CUENTA_INACTIVA`).',
   roles: ['administrador', 'recepcionista'],
   ticket: 'HUNI-45',
+  estado: 'implementado',
   request: { params: idParamSchema },
   response: { description: 'Paciente desactivado', schema: PacienteSchema },
 });
