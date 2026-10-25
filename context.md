@@ -158,6 +158,7 @@ Disponible ⇄ En Mantenimiento
 |---|---|---|
 | **Backend** | **Node.js + TypeScript** | API REST unificada para iOS, Android y Web |
 | **ORM** | **Prisma** | Solo como cliente: `prisma db pull` + `prisma generate`. Sin `prisma migrate` |
+| **Autenticación** | **Supabase Auth** (email/contraseña) | Los clientes inician sesión con el SDK de Supabase y envían el `access_token` como `Bearer`; la API lo valida con el JWKS del proyecto (ES256) y toma el rol de `perfiles` (2026-10-24, HUNI-38) |
 | **Base de datos** | **PostgreSQL 17 en Supabase** | Auth email/contraseña; migraciones SQL con Supabase CLI en `supabase/migrations` (2026-10-21, HUNI-16) |
 | **Web administrativa** | **React + Vite** | SPA del panel de Administrador / Jefe de Operaciones |
 | **App Android** | **Android Studio + Kotlin** (Gradle) | MVVM + Coroutines (+ Flow) |
@@ -174,7 +175,6 @@ Implicaciones para el código:
 | Tema | Opciones | Decisión |
 |---|---|---|
 | Framework HTTP en Node | Express / Fastify / NestJS | — |
-| Autenticación | JWT propio (access + refresh) / proveedor externo | — |
 | Tiempo real (ambulancia, ocupación) | Socket.IO / WebSockets nativos / SSE / polling | — |
 | Validación de entrada | Zod / class-validator / otra | — |
 | UI de la web | Librería de componentes (MUI, shadcn/ui, Tailwind…) | — |
@@ -345,6 +345,7 @@ Leyenda: **C** crear · **R** leer · **U** actualizar · **D** eliminar · *(pr
 | 2026-10-23 | Contrato de API v1 en `/docs` (OpenAPI 3). Rutas y campos JSON en español con `snake_case`. Errores con `code` legible por máquina además del `statusCode` (catálogo en `src/domain/errors/error-codes.ts`). Enum `rol_usuario` reducido a 4 roles: `administrador`, `doctor`, `recepcionista` (= Recepcionista/Asistente), `paciente` (HUNI-36, HUNI-95) | Jimmy |
 | 2026-10-24 | Esquema completo del DER (HUNI-37): tipos de personal como catálogo editable (`tipos_personal`, con `rol_sugerido`), personal sin cuenta (`personal.perfil_id` opcional), pacientes desactivables (`activo`), consultas que se cierran (`cerrada_en`, la BD impide editarlas), turnos sin solape y citas con `duracion_minutos` sin doble reserva (exclusion constraints), vista `v_dashboard_summary`. Seed idempotente con usuarios demo (contraseña en el repo por decisión del equipo; cambiarla antes de la demo final) | Jimmy |
 | 2026-10-24 | Cambio de alcance del inventario (§3.6): medicamentos/insumos por lote con caducidad, equipos por número de serie con estado, proveedores desactivables, entradas con proveedor, salida bloqueada para lotes vencidos, alertas a 15 y 30 días. Recetas e inventario separados; la ambulancia queda fuera del inventario. Solo el administrador (Web) registra movimientos, activos y proveedores; sin rol de farmacia (HUNI-97) | Jimmy |
+| 2026-10-24 | Auth y RBAC (HUNI-38): la API valida el JWT de Supabase con su JWKS (sin llamar a Supabase por petición), el rol sale siempre de `perfiles` (no del token), `requireRole()` responde 403 `ACCESO_DENEGADO` y una cuenta con `perfiles.activo = false` responde 403 `CUENTA_INACTIVA`. Registro público solo crea pacientes; el alta de personal con cuenta la hace el administrador con la llave de servicio (`POST /api/personal`, adelantado de HUNI-45) | Jimmy |
 
 ## 12. Glosario
 - **VIP:** habitación individual de la 3ª planta.

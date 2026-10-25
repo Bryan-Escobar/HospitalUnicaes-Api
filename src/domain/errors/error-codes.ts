@@ -30,6 +30,7 @@ export const ERROR_CODES = {
     status: 403,
     descripcion: 'La cuenta existe pero no tiene paciente ni personal asociado.',
   },
+  CUENTA_INACTIVA: { status: 403, descripcion: 'La cuenta está desactivada; contacta a la administración.' },
 
   // Habitaciones y camas (HUNI-66)
   CAMA_OCUPADA: { status: 409, descripcion: 'La cama ya tiene un paciente activo.' },
