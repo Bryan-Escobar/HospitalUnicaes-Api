@@ -5,7 +5,15 @@ import { booleanQuery, paginacionQuerySchema } from './common.validator';
 // Paciente registrado en recepción (sin cuenta). Se crea también su expediente.
 export const crearPacienteBodySchema = datosPacienteSchema.openapi('CrearPacienteBody');
 
-export const actualizarPacienteBodySchema = datosPacienteSchema.partial().openapi('ActualizarPacienteBody');
+export const actualizarPacienteBodySchema = datosPacienteSchema
+  .partial()
+  .extend({
+    activo: z
+      .boolean()
+      .optional()
+      .openapi({ description: 'Solo `administrador` y `recepcionista`: `true` reactiva al paciente y su cuenta.' }),
+  })
+  .openapi('ActualizarPacienteBody');
 
 export const listarPacientesQuerySchema = paginacionQuerySchema.extend({
   buscar: z
@@ -26,3 +34,7 @@ export const actualizarExpedienteBodySchema = z
   })
   .partial()
   .openapi('ActualizarExpedienteBody');
+
+export type CrearPacienteBody = z.infer<typeof crearPacienteBodySchema>;
+export type ActualizarPacienteBody = z.infer<typeof actualizarPacienteBodySchema>;
+export type ListarPacientesQuery = z.infer<typeof listarPacientesQuerySchema>;

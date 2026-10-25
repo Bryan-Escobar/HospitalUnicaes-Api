@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { AuthRoutes } from './Auth/routes';
+import { DashboardRoutes } from './Dashboard/routes';
 import { HealthRoutes } from './Health/routes';
-import { PersonalRoutes } from './Personal/routes';
+import { PacientesRoutes } from './Pacientes/routes';
+import { EspecialidadesRoutes, PersonalRoutes } from './Personal/routes';
 
 export class AppRoutes {
   static get routes(): Router {
@@ -12,7 +14,10 @@ export class AppRoutes {
 
     // Endpoints de negocio bajo /api
     router.use('/api/auth', AuthRoutes.routes);
+    router.use('/api/pacientes', PacientesRoutes.routes);
     router.use('/api/personal', PersonalRoutes.routes);
+    router.use('/api/especialidades', EspecialidadesRoutes.routes);
+    router.use('/api/dashboard', DashboardRoutes.routes);
 
     return router;
   }

@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma';
 import { Prisma } from '../generated/prisma/client';
+import { conReintentoDeExpediente, crearPacienteConExpediente, DatosNuevoPaciente } from './helpers/expediente';
 
 const perfilConRelaciones = {
   pacientes: { select: { id: true } },
@@ -16,18 +17,7 @@ const perfilConRelaciones = {
 export type PerfilConRelaciones = Prisma.perfilesGetPayload<{ include: typeof perfilConRelaciones }>;
 export type Perfil = Prisma.perfilesGetPayload<object>;
 
-export interface DatosRegistroPaciente {
-  nombres: string;
-  apellidos: string;
-  documento_identidad?: string;
-  fecha_nacimiento?: string;
-  sexo?: 'masculino' | 'femenino' | 'otro';
-  telefono?: string;
-  direccion?: string;
-  contacto_emergencia?: string;
-  telefono_emergencia?: string;
-  alergias?: string;
-}
+export type DatosRegistroPaciente = DatosNuevoPaciente;
 
 export interface CambiosPerfil {
   nombres?: string;
@@ -55,39 +45,21 @@ export class AuthRepository {
    * y su expediente con el siguiente número `EXP-<año>-<00000>`.
    */
   async crearPaciente(perfilId: string, datos: DatosRegistroPaciente): Promise<PerfilConRelaciones> {
-    // Dos registros simultáneos pueden calcular el mismo número de expediente: se reintenta.
-    for (let intento = 1; ; intento++) {
-      try {
-        return await this.crearPacienteTx(perfilId, datos);
-      } catch (error) {
-        const choqueExpediente =
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2002' &&
-          String(error.meta?.target).includes('numero_expediente');
-        if (!choqueExpediente || intento >= 3) throw error;
-      }
-    }
-  }
-
-  private async crearPacienteTx(perfilId: string, datos: DatosRegistroPaciente): Promise<PerfilConRelaciones> {
-    const { alergias, fecha_nacimiento, ...paciente } = datos;
-    return prisma.$transaction(async (tx) => {
-      await tx.perfiles.update({
-        where: { id: perfilId },
-        data: { rol: 'paciente', nombres: datos.nombres, apellidos: datos.apellidos, telefono: datos.telefono ?? null },
-      });
-      const nuevo = await tx.pacientes.create({
-        data: {
-          ...paciente,
-          perfil_id: perfilId,
-          fecha_nacimiento: fecha_nacimiento ? new Date(`${fecha_nacimiento}T00:00:00Z`) : undefined,
-        },
-      });
-      await tx.expedientes.create({
-        data: { paciente_id: nuevo.id, numero_expediente: await this.siguienteNumeroExpediente(tx), alergias },
-      });
-      return tx.perfiles.findUniqueOrThrow({ where: { id: perfilId }, include: perfilConRelaciones });
-    });
+    return conReintentoDeExpediente(() =>
+      prisma.$transaction(async (tx) => {
+        await tx.perfiles.update({
+          where: { id: perfilId },
+          data: {
+            rol: 'paciente',
+            nombres: datos.nombres,
+            apellidos: datos.apellidos,
+            telefono: datos.telefono ?? null,
+          },
+        });
+        await crearPacienteConExpediente(tx, datos, perfilId);
+        return tx.perfiles.findUniqueOrThrow({ where: { id: perfilId }, include: perfilConRelaciones });
+      }),
+    );
   }
 
   /** Actualiza el perfil y copia nombre y teléfono al paciente o empleado vinculado para que no diverjan. */
@@ -101,16 +73,5 @@ export class AuthRepository {
       }
       return perfil;
     });
-  }
-
-  private async siguienteNumeroExpediente(tx: Prisma.TransactionClient): Promise<string> {
-    const prefijo = `EXP-${new Date().getUTCFullYear()}-`;
-    const ultimo = await tx.expedientes.findFirst({
-      where: { numero_expediente: { startsWith: prefijo } },
-      orderBy: { numero_expediente: 'desc' },
-      select: { numero_expediente: true },
-    });
-    const siguiente = (ultimo ? Number(ultimo.numero_expediente.slice(prefijo.length)) : 0) + 1;
-    return `${prefijo}${String(siguiente).padStart(5, '0')}`;
   }
 }

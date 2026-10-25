@@ -10,6 +10,7 @@ registerEndpoint({
     'Ocupación, personal de turno, estado de la ambulancia, citas del día, laboratorio, inventario bajo mínimo y lotes por vencer (15 y 30 días).',
   roles: ['administrador'],
   ticket: 'HUNI-45',
+  estado: 'implementado',
   response: { description: 'Resumen', schema: ResumenDashboardSchema },
 });
 
