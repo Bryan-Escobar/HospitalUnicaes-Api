@@ -64,3 +64,5 @@ export const actualizarTipoPersonalBodySchema = crearTipoPersonalBodySchema
   .openapi('ActualizarTipoPersonalBody');
 
 export type CrearPersonalBody = z.infer<typeof crearPersonalBodySchema>;
+export type ActualizarPersonalBody = z.infer<typeof actualizarPersonalBodySchema>;
+export type ListarPersonalQuery = z.infer<typeof listarPersonalQuerySchema>;

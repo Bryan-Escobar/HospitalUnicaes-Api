@@ -20,6 +20,7 @@ registerEndpoint({
   summary: 'Listar personal',
   roles: ['administrador', 'recepcionista'],
   ticket: 'HUNI-45',
+  estado: 'implementado',
   request: { query: listarPersonalQuerySchema },
   response: { description: 'Página de personal', schema: paginado(PersonalSchema) },
 });
@@ -48,6 +49,7 @@ registerEndpoint({
   summary: 'Detalle de un empleado',
   roles: ['administrador', 'recepcionista'],
   ticket: 'HUNI-45',
+  estado: 'implementado',
   request: { params: idParamSchema },
   response: { description: 'Empleado', schema: PersonalSchema },
 });
@@ -58,12 +60,18 @@ registerEndpoint({
   tag: TAG,
   summary: 'Actualizar empleado',
   description:
-    'Cambiar `rol` actualiza el perfil de su cuenta; si el empleado no tiene cuenta → 400 `SOLICITUD_INVALIDA`.',
+    'Cambiar `rol` actualiza el perfil de su cuenta; si el empleado no tiene cuenta → 400 `SOLICITUD_INVALIDA`. ' +
+    '`activo` también se copia a su cuenta. El administrador no puede desactivarse ni quitarse su rol (422).',
   roles: ['administrador'],
   ticket: 'HUNI-45',
+  estado: 'implementado',
   request: { params: idParamSchema, body: jsonBody(actualizarPersonalBodySchema) },
   response: { description: 'Empleado actualizado', schema: PersonalSchema },
-  errores: { 400: ['REFERENCIA_INVALIDA', 'SOLICITUD_INVALIDA'], 409: ['REGISTRO_DUPLICADO'] },
+  errores: {
+    400: ['REFERENCIA_INVALIDA', 'SOLICITUD_INVALIDA'],
+    409: ['REGISTRO_DUPLICADO'],
+    422: ['REGLA_DE_NEGOCIO'],
+  },
 });
 
 registerEndpoint({
@@ -71,11 +79,15 @@ registerEndpoint({
   path: '/api/personal/{id}',
   tag: TAG,
   summary: 'Desactivar empleado',
-  description: 'Desactivación lógica (`activo = false`): no borra datos ni su historial.',
+  description:
+    'Desactivación lógica (`activo = false`): no borra datos ni su historial. Si tiene cuenta, también se ' +
+    'desactiva (403 `CUENTA_INACTIVA`). El administrador no puede desactivarse a sí mismo (422).',
   roles: ['administrador'],
   ticket: 'HUNI-45',
+  estado: 'implementado',
   request: { params: idParamSchema },
   response: { description: 'Empleado desactivado', schema: PersonalSchema },
+  errores: { 422: ['REGLA_DE_NEGOCIO'] },
 });
 
 registerEndpoint({
@@ -85,6 +97,7 @@ registerEndpoint({
   summary: 'Catálogo de especialidades',
   roles: [...ROLES],
   ticket: 'HUNI-45',
+  estado: 'implementado',
   response: { description: 'Especialidades', schema: z.array(EspecialidadSchema) },
 });
 
