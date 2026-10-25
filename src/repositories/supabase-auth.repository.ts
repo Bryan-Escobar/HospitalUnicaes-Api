@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '../config/supabase';
+import { supabaseAuthAdmin } from '../config/supabase';
 import { CustomError } from '../domain/errors/CustomError';
 
 export interface NuevaCuenta {
@@ -16,7 +16,7 @@ export interface NuevaCuenta {
 export class SupabaseAuthRepository {
   /** Crea la cuenta ya confirmada (puede iniciar sesión de inmediato) y devuelve su id. */
   async crearUsuario({ email, password, nombres, apellidos }: NuevaCuenta): Promise<string> {
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    const { data, error } = await supabaseAuthAdmin.createUser({
       email,
       password,
       email_confirm: true,
@@ -36,7 +36,7 @@ export class SupabaseAuthRepository {
   }
 
   async eliminarUsuario(id: string): Promise<void> {
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
+    const { error } = await supabaseAuthAdmin.deleteUser(id);
     if (error) throw error;
   }
 }
