@@ -125,7 +125,7 @@ select is((select count(*)::int from public.ordenes_laboratorio where id = '7777
 select pg_temp.como('11111111-1111-4111-8111-000000000002');  -- doctor tratante (registró la consulta)
 select is((select count(*)::int from public.ordenes_laboratorio where id = '77777777-7777-4777-8777-000000000031'), 1,
   'el médico tratante ve la orden');
-select pg_temp.como('11111111-1111-4111-8111-000000000006');  -- doctor que no atiende a Carlos
+select pg_temp.como('11111111-1111-4111-8111-000000000005');  -- doctora de pediatría: en el seed solo atiende a Daniela
 select is((select count(*)::int from public.ordenes_laboratorio where id = '77777777-7777-4777-8777-000000000031'), 0,
   'un doctor que no atiende al paciente no ve la orden');
 select pg_temp.como('11111111-1111-4111-8111-000000000003');  -- recepción (procesa los exámenes)
