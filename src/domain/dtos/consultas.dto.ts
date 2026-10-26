@@ -12,6 +12,8 @@ export const DiagnosticoSchema = z
     codigo_cie10: z.string().nullable().openapi({ example: 'K35.8' }),
     descripcion: z.string().openapi({ example: 'Apendicitis aguda' }),
     tipo: TipoDiagnosticoSchema,
+    registrado_por: PersonaResumenSchema.openapi({ description: 'Empleado que lo registró (HUNI-57)' }),
+    created_at: fechaHora,
   })
   .openapi('Diagnostico');
 
@@ -20,6 +22,7 @@ export const RecetaSchema = z
     id: uuidOut,
     consulta_id: uuidOut,
     fecha_emision: fechaHora,
+    registrado_por: PersonaResumenSchema.openapi({ description: 'Empleado que la emitió (HUNI-57)' }),
     indicaciones: z.string().nullable(),
     detalles: z.array(
       z.object({
@@ -29,7 +32,10 @@ export const RecetaSchema = z
         frecuencia: z.string().nullable(),
         duracion: z.string().nullable(),
         cantidad: z.number().int().nullable(),
-        item_id: uuidOut.nullable(),
+        item_id: uuidOut.nullable().openapi({
+          description:
+            'Referencia opcional al inventario. La receta no descuenta stock: el paciente compra donde quiera.',
+        }),
       }),
     ),
   })

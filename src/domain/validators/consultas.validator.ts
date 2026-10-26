@@ -69,3 +69,9 @@ export const crearRecetaBodySchema = z
       .min(1, 'La receta necesita al menos un medicamento'),
   })
   .openapi('CrearRecetaBody');
+
+export type CrearConsultaBody = z.infer<typeof crearConsultaBodySchema>;
+export type ActualizarConsultaBody = z.infer<typeof actualizarConsultaBodySchema>;
+export type ListarConsultasQuery = z.infer<typeof listarConsultasQuerySchema>;
+export type CrearDiagnosticoBody = z.infer<typeof crearDiagnosticoBodySchema>;
+export type CrearRecetaBody = z.infer<typeof crearRecetaBodySchema>;

@@ -41,6 +41,7 @@ export const OrdenLaboratorioResumenSchema = z
   .object({
     id: uuidOut,
     fecha_solicitud: fechaHora,
+    registrado_por: PersonaResumenSchema.openapi({ description: 'Empleado que solicitó los exámenes (HUNI-57)' }),
     prioridad: PrioridadSchema,
     estado: EstadoLaboratorioSchema.openapi({
       description: 'Derivado de sus exámenes: completado cuando todos lo están',
