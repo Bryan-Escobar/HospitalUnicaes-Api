@@ -578,6 +578,33 @@ join public.camas c on c.codigo = h.cama and c.estado = 'disponible'
 join public.personal d on d.codigo_empleado = h.doctor
 where not exists (select 1 from public.hospitalizaciones x where x.paciente_id = pa.id and x.fecha_alta is null);
 
+-- Historial de camas (HUNI-66): Ana Sofía ingresó, la trasladaron y ya tiene alta. Usa las mismas
+-- funciones que la API (asignar_cama → trasladar_cama → dar_alta), así su historial queda completo.
+-- Las camas que usó vuelven a disponible para que el demo tenga camas libres.
+do $seed_historial_camas$
+declare
+  v_paciente uuid;
+  v_hosp     uuid;
+  v_recep    uuid := (select id from public.personal where codigo_empleado = 'EMP-0003');
+begin
+  select pa.id into v_paciente from public.pacientes pa where pa.perfil_id = '11111111-1111-4111-8111-000000000007';
+  if v_paciente is null or exists (select 1 from public.hospitalizaciones h where h.paciente_id = v_paciente) then
+    return;
+  end if;
+  if exists (select 1 from public.camas where codigo in ('HAB-203-A', 'HAB-204-A') and estado <> 'disponible') then
+    return;
+  end if;
+
+  v_hosp := public.asignar_cama(v_paciente, (select id from public.personal where codigo_empleado = 'EMP-0002'),
+                                (select id from public.camas where codigo = 'HAB-203-A'), null,
+                                'Gastroenteritis aguda con deshidratación', v_recep);
+  perform public.trasladar_cama(v_hosp, (select id from public.camas where codigo = 'HAB-204-A'), v_recep);
+  perform public.dar_alta(v_hosp, 'Alta médica: tolera vía oral, control en 7 días', v_recep);
+
+  update public.camas set estado = 'disponible' where codigo in ('HAB-203-A', 'HAB-204-A') and estado = 'limpieza';
+end
+$seed_historial_camas$;
+
 -- -----------------------------------------------------------------------------
 -- Avisos generales (2 públicos y 1 interno)
 -- -----------------------------------------------------------------------------
