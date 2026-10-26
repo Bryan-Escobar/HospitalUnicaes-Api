@@ -1,4 +1,5 @@
 import { GoTrueAdminApi } from '@supabase/auth-js';
+import { StorageClient } from '@supabase/storage-js';
 import { envs } from './envs';
 
 // API admin de Supabase Auth con la llave de servicio (salta RLS): solo para crear y borrar cuentas.
@@ -7,4 +8,11 @@ import { envs } from './envs';
 export const supabaseAuthAdmin = new GoTrueAdminApi({
   url: `${envs.SUPABASE_URL}/auth/v1`,
   headers: { apikey: envs.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${envs.SUPABASE_SERVICE_ROLE_KEY}` },
+});
+
+// Storage con la llave de servicio: sube los PDF de laboratorio y firma URLs de descarga (HUNI-62).
+// `@supabase/storage-js` suelto por la misma razón que auth-js: no arrastra Realtime.
+export const supabaseStorage = new StorageClient(`${envs.SUPABASE_URL}/storage/v1`, {
+  apikey: envs.SUPABASE_SERVICE_ROLE_KEY,
+  Authorization: `Bearer ${envs.SUPABASE_SERVICE_ROLE_KEY}`,
 });

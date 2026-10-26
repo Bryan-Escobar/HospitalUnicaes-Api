@@ -44,3 +44,6 @@ export const registrarResultadoBodySchema = z
   .openapi('RegistrarResultadoBody');
 
 export type CrearOrdenBody = z.infer<typeof crearOrdenBodySchema>;
+export type ListarOrdenesQuery = z.infer<typeof listarOrdenesQuerySchema>;
+export type CambiarEstadoExamenBody = z.infer<typeof cambiarEstadoExamenBodySchema>;
+export type RegistrarResultadoBody = z.infer<typeof registrarResultadoBodySchema>;
