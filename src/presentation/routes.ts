@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { AuthRoutes } from './Auth/routes';
+import { ConsultasRoutes } from './Consultas/routes';
 import { DashboardRoutes } from './Dashboard/routes';
 import { HealthRoutes } from './Health/routes';
+import { LaboratorioRoutes } from './Laboratorio/routes';
 import { PacientesRoutes } from './Pacientes/routes';
 import { EspecialidadesRoutes, PersonalRoutes } from './Personal/routes';
 
@@ -18,6 +20,8 @@ export class AppRoutes {
     router.use('/api/personal', PersonalRoutes.routes);
     router.use('/api/especialidades', EspecialidadesRoutes.routes);
     router.use('/api/dashboard', DashboardRoutes.routes);
+    router.use('/api/consultas', ConsultasRoutes.routes);
+    router.use('/api/laboratorio', LaboratorioRoutes.routes);
 
     return router;
   }

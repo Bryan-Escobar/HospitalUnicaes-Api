@@ -42,3 +42,5 @@ export const registrarResultadoBodySchema = z
     archivo: z.any().optional().openapi({ type: 'string', format: 'binary', description: 'PDF, máximo 10 MB' }),
   })
   .openapi('RegistrarResultadoBody');
+
+export type CrearOrdenBody = z.infer<typeof crearOrdenBodySchema>;

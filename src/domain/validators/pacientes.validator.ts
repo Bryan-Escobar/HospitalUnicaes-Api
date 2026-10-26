@@ -38,3 +38,4 @@ export const actualizarExpedienteBodySchema = z
 export type CrearPacienteBody = z.infer<typeof crearPacienteBodySchema>;
 export type ActualizarPacienteBody = z.infer<typeof actualizarPacienteBodySchema>;
 export type ListarPacientesQuery = z.infer<typeof listarPacientesQuerySchema>;
+export type ActualizarExpedienteBody = z.infer<typeof actualizarExpedienteBodySchema>;
