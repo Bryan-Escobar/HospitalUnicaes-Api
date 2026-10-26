@@ -98,8 +98,11 @@ const hospitalizacion = (cambios: Partial<HospitalizacionDetalle> = {}): Hospita
   ...cambios,
 });
 
-/** Error tal como lo entrega Prisma cuando una función de Postgres lanza 'CODIGO: detalle'. */
-const errorBd = (mensaje: string) => new Error(`Raw query failed. Code: \`PT409\`. Message: \`${mensaje}\``);
+/** Error tal como lo entrega Prisma ($queryRaw) cuando una función de Postgres lanza 'CODIGO: detalle'. */
+const errorBd = (mensaje: string) =>
+  new Error(
+    `Invalid \`prisma.$queryRaw()\` invocation:\n\nRaw query failed. Code: \`PT409\`. Message: \`ERROR: ${mensaje}\``,
+  );
 
 const repo = <K extends keyof HabitacionesRepository>(m: K) => jest.spyOn(HabitacionesRepository.prototype, m);
 const personalDe = (id: string | null) =>
