@@ -173,6 +173,25 @@ o importando `/docs.json` en Postman (Mock server).
 
 Al implementar un endpoint, pon `estado: 'implementado'` en su `src/docs/paths/<modulo>.docs.ts`. Un test (`test/docs/contrato.test.ts`) falla si el estado documentado no coincide con lo que responde la API.
 
+## Consultas e historial clínico (HUNI-57)
+
+Endpoints de la API (detalle en `/docs`, etiqueta *Consultas* y *Laboratorio*):
+
+| Qué | Endpoint | Quién |
+|---|---|---|
+| Abrir consulta (con o sin cita; p. ej. emergencia) | `POST /api/consultas` | Doctor: queda como médico tratante |
+| Diagnóstico, receta, solicitud de exámenes | `POST /api/consultas/{id}/diagnosticos` · `/recetas` · `POST /api/laboratorio/ordenes` | Solo el doctor que abrió la consulta, mientras esté abierta |
+| Editar y cerrar | `PATCH /api/consultas/{id}` · `POST /api/consultas/{id}/cerrar` | Ídem. Cerrada → todo responde 409 `CONSULTA_CERRADA` |
+| Ver consultas y detalle | `GET /api/consultas` · `GET /api/consultas/{id}` | Admin: todas · doctor: las suyas / de pacientes que atiende · paciente: las propias |
+| Historial clínico | `GET /api/pacientes/{id}/historial` | Médico tratante, el propio paciente y administración |
+| Expediente (sangre, alergias, antecedentes) | `PATCH /api/pacientes/{id}/expediente` | Médico tratante |
+| Catálogo de exámenes | `GET /api/laboratorio/examenes` | Admin, doctor y recepción |
+
+- Recepción **no** ve información clínica (403). La administración solo lee.
+- Cada diagnóstico, receta y orden guarda `registrado_por` (quién) y su fecha.
+- La receta **no descuenta stock**: `item_id` es solo una referencia opcional al inventario.
+- Paciente que no existe → 400 `REFERENCIA_INVALIDA`; desactivado → 422 `REGLA_DE_NEGOCIO`.
+
 ## Turnos y citas directo desde Supabase (HUNI-51)
 
 Turnos y citas **no pasan por la API Express**: los clientes los leen y escriben con el SDK de Supabase,
