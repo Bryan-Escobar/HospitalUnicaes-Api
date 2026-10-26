@@ -428,7 +428,7 @@ from (values
 ) as x (id, examen, estado)
 join public.examenes_catalogo ec on ec.nombre = x.examen
 where exists (select 1 from public.ordenes_laboratorio o where o.id = '55555555-5555-4555-8555-000000000031')
-on conflict (id) do nothing;
+  and not exists (select 1 from public.orden_examenes oe where oe.id = x.id::uuid);
 
 insert into public.resultados_laboratorio (orden_examen_id, valor, unidad, rango_referencia, observaciones, validado_por)
 select '55555555-5555-4555-8555-000000000041', '13.8', 'g/dL', '13.0 – 17.0', 'Hemoglobina dentro de rango', d.id
@@ -461,7 +461,7 @@ select '55555555-5555-4555-8555-000000000043', '55555555-5555-4555-8555-00000000
 from public.examenes_catalogo ec
 where ec.nombre = 'Glucosa en ayunas'
   and exists (select 1 from public.ordenes_laboratorio o where o.id = '55555555-5555-4555-8555-000000000032')
-on conflict (id) do nothing;
+  and not exists (select 1 from public.orden_examenes oe where oe.id = '55555555-5555-4555-8555-000000000043');
 
 -- -----------------------------------------------------------------------------
 -- Hospitalizaciones activas (ocupación del dashboard y "médico tratante")
