@@ -39,13 +39,26 @@ export const ERROR_CODES = {
   SIN_CAMAS_DISPONIBLES: { status: 409, descripcion: 'No hay camas libres del tipo solicitado.' },
   HOSPITALIZACION_FINALIZADA: { status: 409, descripcion: 'La hospitalización ya tiene alta.' },
 
+  // Turnos y citas (HUNI-51). Los lanza la BD: también llegan a los clientes que usan Supabase directo.
+  TURNO_SOLAPADO: { status: 409, descripcion: 'El empleado ya tiene otro turno que se cruza con ese horario.' },
+  CITA_DUPLICADA: {
+    status: 409,
+    descripcion: 'El doctor o el paciente ya tiene otra cita activa que se cruza con ese horario.',
+  },
+  CITA_FUERA_DE_TURNO: {
+    status: 422,
+    descripcion: 'El doctor no está de turno durante toda la cita (inicio y fin).',
+  },
+
   // Consultas (HUNI-57)
   CONSULTA_CERRADA: { status: 409, descripcion: 'La consulta ya está cerrada y no se puede modificar.' },
 
-  // Laboratorio (HUNI-62)
+  // Laboratorio (HUNI-62) y citas (HUNI-51)
   TRANSICION_INVALIDA: {
     status: 422,
-    descripcion: 'Cambio de estado no permitido (laboratorio: pendiente → en_proceso → completado).',
+    descripcion:
+      'Cambio de estado no permitido (laboratorio: pendiente → en_proceso → completado; ' +
+      'citas: solo cambian mientras están programadas o confirmadas).',
   },
   RESULTADO_REQUERIDO: { status: 422, descripcion: 'Para completar un examen hay que registrar su resultado.' },
 
