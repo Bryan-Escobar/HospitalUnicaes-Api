@@ -641,12 +641,14 @@ model bitacora_ambulancia {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model camas {
-  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  habitacion_id     String              @db.Uuid
-  codigo            String              @unique
-  estado            estado_cama         @default(disponible)
-  habitaciones      habitaciones        @relation(fields: [habitacion_id], references: [id], onUpdate: NoAction)
-  hospitalizaciones hospitalizaciones[]
+  id                                                       String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  habitacion_id                                            String              @db.Uuid
+  codigo                                                   String              @unique
+  estado                                                   estado_cama         @default(disponible)
+  habitaciones                                             habitaciones        @relation(fields: [habitacion_id], references: [id], onUpdate: NoAction)
+  hospitalizaciones                                        hospitalizaciones[]
+  movimientos_cama_movimientos_cama_cama_destino_idTocamas movimientos_cama[]  @relation("movimientos_cama_cama_destino_idTocamas")
+  movimientos_cama_movimientos_cama_cama_origen_idTocamas  movimientos_cama[]  @relation("movimientos_cama_cama_origen_idTocamas")
 
   @@index([habitacion_id])
   @@schema("public")
@@ -773,17 +775,23 @@ model habitaciones {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model hospitalizaciones {
-  id                 String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  paciente_id        String                 @db.Uuid
-  cama_id            String                 @db.Uuid
-  doctor_tratante_id String                 @db.Uuid
-  fecha_ingreso      DateTime               @default(now()) @db.Timestamptz(6)
-  fecha_alta         DateTime?              @db.Timestamptz(6)
-  motivo_ingreso     String?
-  estado             estado_hospitalizacion @default(activa)
-  camas              camas                  @relation(fields: [cama_id], references: [id], onUpdate: NoAction)
-  personal           personal               @relation(fields: [doctor_tratante_id], references: [id], onUpdate: NoAction)
-  pacientes          pacientes              @relation(fields: [paciente_id], references: [id], onUpdate: NoAction)
+  id                                                 String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paciente_id                                        String                 @db.Uuid
+  cama_id                                            String                 @db.Uuid
+  doctor_tratante_id                                 String                 @db.Uuid
+  fecha_ingreso                                      DateTime               @default(now()) @db.Timestamptz(6)
+  fecha_alta                                         DateTime?              @db.Timestamptz(6)
+  motivo_ingreso                                     String?
+  estado                                             estado_hospitalizacion @default(activa)
+  ingresado_por                                      String?                @db.Uuid
+  alta_por                                           String?                @db.Uuid
+  notas_alta                                         String?
+  personal_hospitalizaciones_alta_porTopersonal      personal?              @relation("hospitalizaciones_alta_porTopersonal", fields: [alta_por], references: [id], onUpdate: NoAction)
+  camas                                              camas                  @relation(fields: [cama_id], references: [id], onUpdate: NoAction)
+  personal                                           personal               @relation(fields: [doctor_tratante_id], references: [id], onUpdate: NoAction)
+  personal_hospitalizaciones_ingresado_porTopersonal personal?              @relation("hospitalizaciones_ingresado_porTopersonal", fields: [ingresado_por], references: [id], onUpdate: NoAction)
+  pacientes                                          pacientes              @relation(fields: [paciente_id], references: [id], onUpdate: NoAction)
+  movimientos_cama                                   movimientos_cama[]
 
   @@index([doctor_tratante_id])
   @@schema("public")
@@ -937,28 +945,31 @@ model perfiles {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model personal {
-  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  perfil_id              String?                  @unique @db.Uuid
-  especialidad_id        String?                  @db.Uuid
-  codigo_empleado        String                   @unique
-  num_licencia           String?
-  fecha_contratacion     DateTime?                @db.Date
-  activo                 Boolean                  @default(true)
-  tipo_personal_id       String                   @db.Uuid
-  nombres                String
-  apellidos              String
-  telefono               String?
-  citas                  citas[]
-  consultas              consultas[]
-  diagnosticos           diagnosticos[]
-  hospitalizaciones      hospitalizaciones[]
-  ordenes_laboratorio    ordenes_laboratorio[]
-  especialidades         especialidades?          @relation(fields: [especialidad_id], references: [id], onUpdate: NoAction)
-  perfiles               perfiles?                @relation(fields: [perfil_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  tipos_personal         tipos_personal           @relation(fields: [tipo_personal_id], references: [id], onUpdate: NoAction)
-  recetas                recetas[]
-  resultados_laboratorio resultados_laboratorio[]
-  turnos_personal        turnos_personal[]
+  id                                                          String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  perfil_id                                                   String?                  @unique @db.Uuid
+  especialidad_id                                             String?                  @db.Uuid
+  codigo_empleado                                             String                   @unique
+  num_licencia                                                String?
+  fecha_contratacion                                          DateTime?                @db.Date
+  activo                                                      Boolean                  @default(true)
+  tipo_personal_id                                            String                   @db.Uuid
+  nombres                                                     String
+  apellidos                                                   String
+  telefono                                                    String?
+  citas                                                       citas[]
+  consultas                                                   consultas[]
+  diagnosticos                                                diagnosticos[]
+  hospitalizaciones_hospitalizaciones_alta_porTopersonal      hospitalizaciones[]      @relation("hospitalizaciones_alta_porTopersonal")
+  hospitalizaciones                                           hospitalizaciones[]
+  hospitalizaciones_hospitalizaciones_ingresado_porTopersonal hospitalizaciones[]      @relation("hospitalizaciones_ingresado_porTopersonal")
+  movimientos_cama                                            movimientos_cama[]
+  ordenes_laboratorio                                         ordenes_laboratorio[]
+  especialidades                                              especialidades?          @relation(fields: [especialidad_id], references: [id], onUpdate: NoAction)
+  perfiles                                                    perfiles?                @relation(fields: [perfil_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  tipos_personal                                              tipos_personal           @relation(fields: [tipo_personal_id], references: [id], onUpdate: NoAction)
+  recetas                                                     recetas[]
+  resultados_laboratorio                                      resultados_laboratorio[]
+  turnos_personal                                             turnos_personal[]
 
   @@index([especialidad_id])
   @@index([tipo_personal_id])
@@ -1092,6 +1103,26 @@ model turnos_personal {
   personal    personal   @relation(fields: [personal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([personal_id, fecha])
+  @@schema("public")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model movimientos_cama {
+  id                                            String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hospitalizacion_id                            String               @db.Uuid
+  tipo                                          tipo_movimiento_cama
+  cama_origen_id                                String?              @db.Uuid
+  cama_destino_id                               String?              @db.Uuid
+  registrado_por                                String?              @db.Uuid
+  notas                                         String?
+  created_at                                    DateTime             @default(now()) @db.Timestamptz(6)
+  camas_movimientos_cama_cama_destino_idTocamas camas?               @relation("movimientos_cama_cama_destino_idTocamas", fields: [cama_destino_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  camas_movimientos_cama_cama_origen_idTocamas  camas?               @relation("movimientos_cama_cama_origen_idTocamas", fields: [cama_origen_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  hospitalizaciones                             hospitalizaciones    @relation(fields: [hospitalizacion_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  personal                                      personal?            @relation(fields: [registrado_por], references: [id], onUpdate: NoAction)
+
+  @@index([hospitalizacion_id, created_at], map: "movimientos_cama_hospitalizacion_id_idx")
   @@schema("public")
 }
 
@@ -1288,6 +1319,14 @@ enum tipo_turno {
   tarde
   noche
   guardia
+
+  @@schema("public")
+}
+
+enum tipo_movimiento_cama {
+  ingreso
+  traslado
+  alta
 
   @@schema("public")
 }
