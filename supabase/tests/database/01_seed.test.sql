@@ -1,7 +1,7 @@
 -- HUNI-37: el seed carga la infraestructura fija del hospital y un usuario demo por rol.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(18);
 
 -- Habitaciones
 select is((select count(*)::int from public.habitaciones where tipo = 'vip'), 5, '5 habitaciones VIP');
@@ -38,8 +38,11 @@ select set_eq(
 select is(
   (select count(*)::int from auth.identities i join auth.users u on u.id = i.user_id
     where u.email like '%@demo.hospitalunicaes.test' and i.provider = 'email'),
-  4, 'los usuarios demo pueden iniciar sesión con email'
+  (select count(*)::int from auth.users u where u.email like '%@demo.hospitalunicaes.test'),
+  'todos los usuarios demo pueden iniciar sesión con email'
 );
+select is((select count(*)::int from auth.users u where u.email like '%@demo.hospitalunicaes.test'), 7,
+  '7 usuarios demo: 1 admin, 3 doctores, 1 recepcionista y 2 pacientes');
 select is(
   (select count(*)::int from public.pacientes pa join public.expedientes e on e.paciente_id = pa.id
     where pa.perfil_id = '11111111-1111-4111-8111-000000000004'),
@@ -50,5 +53,21 @@ select ok(
   'existe personal sin cuenta (solo aparece en turnos)'
 );
 
-select * from finish();
+-- Agenda demo (HUNI-51): relativa al día del seed
+select ok(
+  exists (select 1 from public.turnos_personal where fecha = public.hoy_local()),
+  'hay turnos para hoy'
+);
+select ok(
+  exists (select 1 from public.citas where fecha_hora > now() and estado in ('programada', 'confirmada')),
+  'hay citas próximas activas'
+);
+select ok(
+  not exists (
+    select 1 from public.citas c
+    where c.estado in ('programada', 'confirmada')
+      and not public.doctor_de_turno(c.doctor_id, c.fecha_hora, c.duracion_minutos)
+  ),
+  'todas las citas activas del seed caen dentro de un turno del doctor'
+);
 rollback;

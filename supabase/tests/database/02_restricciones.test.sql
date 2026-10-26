@@ -10,68 +10,76 @@ insert into public.pacientes (id, nombres, apellidos) values
 insert into public.expedientes (id, paciente_id, numero_expediente) values
   ('33333333-3333-4333-8333-000000000001', '22222222-2222-4222-8222-000000000001', 'EXP-TEST-1');
 
+-- Fechas en 2030 para no chocar con la agenda del seed, que es relativa a hoy.
+-- Los solapes los detecta primero el trigger (HUNI-51, PT409 con mensaje legible);
+-- las exclusion constraints quedan de respaldo.
+
 -- ---------- Turnos sin solape ----------
 insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
-select id, 'Emergencia', '2026-11-10', '07:00', '15:00', 'manana' from public.personal where codigo_empleado = 'EMP-0004';
+select id, 'Emergencia', '2030-11-10', '07:00', '15:00', 'manana' from public.personal where codigo_empleado = 'EMP-0004';
 
 select throws_ok(
   $$ insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
-     select id, 'Pediatría', '2026-11-10', '14:00', '22:00', 'tarde' from public.personal where codigo_empleado = 'EMP-0004' $$,
-  '23P01', null, 'un empleado no puede tener dos turnos que se crucen'
+     select id, 'Pediatría', '2030-11-10', '14:00', '22:00', 'tarde' from public.personal where codigo_empleado = 'EMP-0004' $$,
+  'PT409', null, 'un empleado no puede tener dos turnos que se crucen'
 );
 select lives_ok(
   $$ insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
-     select id, 'Emergencia', '2026-11-10', '15:00', '23:00', 'tarde' from public.personal where codigo_empleado = 'EMP-0004' $$,
+     select id, 'Emergencia', '2030-11-10', '15:00', '23:00', 'tarde' from public.personal where codigo_empleado = 'EMP-0004' $$,
   'un turno puede empezar justo cuando termina el anterior'
 );
 -- Turno nocturno: 22:00 → 06:00 termina al día siguiente
 insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
-select id, 'Emergencia', '2026-11-21', '05:00', '08:00', 'manana' from public.personal where codigo_empleado = 'EMP-0004';
+select id, 'Emergencia', '2030-11-21', '05:00', '08:00', 'manana' from public.personal where codigo_empleado = 'EMP-0004';
 
 select throws_ok(
   $$ insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
-     select id, 'Emergencia', '2026-11-20', '22:00', '06:00', 'noche' from public.personal where codigo_empleado = 'EMP-0004' $$,
-  '23P01', null, 'un turno nocturno (22:00–06:00) ocupa la madrugada del día siguiente'
+     select id, 'Emergencia', '2030-11-20', '22:00', '06:00', 'noche' from public.personal where codigo_empleado = 'EMP-0004' $$,
+  'PT409', null, 'un turno nocturno (22:00–06:00) ocupa la madrugada del día siguiente'
 );
 select lives_ok(
   $$ insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
-     select id, 'Emergencia', '2026-11-20', '22:00', '04:00', 'noche' from public.personal where codigo_empleado = 'EMP-0004' $$,
+     select id, 'Emergencia', '2030-11-20', '22:00', '04:00', 'noche' from public.personal where codigo_empleado = 'EMP-0004' $$,
   'un turno nocturno que termina antes del siguiente turno sí se permite'
 );
 select lives_ok(
   $$ insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
-     select id, 'Emergencia', '2026-11-10', '07:00', '15:00', 'manana' from public.personal where codigo_empleado = 'EMP-0002' $$,
+     select id, 'Emergencia', '2030-11-10', '07:00', '15:00', 'manana' from public.personal where codigo_empleado = 'EMP-0002' $$,
   'otro empleado sí puede tener el mismo horario'
 );
 select throws_ok(
   $$ insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
-     select id, 'Emergencia', '2026-11-12', '08:00', '08:00', 'manana' from public.personal where codigo_empleado = 'EMP-0002' $$,
+     select id, 'Emergencia', '2030-11-12', '08:00', '08:00', 'manana' from public.personal where codigo_empleado = 'EMP-0002' $$,
   '23514', null, 'un turno no puede empezar y terminar a la misma hora'
 );
 
 -- ---------- Citas sin doble reserva ----------
+-- Desde HUNI-51 la cita debe caer dentro del turno del doctor (EMP-0002 ya tiene 07:00–15:00 de arriba)
+insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
+select id, 'Pediatría', '2030-11-10', '08:00', '12:00', 'manana' from public.personal where codigo_empleado = 'EMP-0005';
+
 insert into public.citas (paciente_id, doctor_id, fecha_hora, duracion_minutos)
-select '22222222-2222-4222-8222-000000000001', id, '2026-11-10 10:00-06', 30 from public.personal where codigo_empleado = 'EMP-0002';
+select '22222222-2222-4222-8222-000000000001', id, '2030-11-10 10:00-06', 30 from public.personal where codigo_empleado = 'EMP-0002';
 
 select throws_ok(
   $$ insert into public.citas (paciente_id, doctor_id, fecha_hora)
-     select '22222222-2222-4222-8222-000000000002', id, '2026-11-10 10:15-06' from public.personal where codigo_empleado = 'EMP-0002' $$,
-  '23P01', null, 'el doctor no puede tener dos citas que se crucen'
+     select '22222222-2222-4222-8222-000000000002', id, '2030-11-10 10:15-06' from public.personal where codigo_empleado = 'EMP-0002' $$,
+  'PT409', null, 'el doctor no puede tener dos citas que se crucen'
 );
 select throws_ok(
   $$ insert into public.citas (paciente_id, doctor_id, fecha_hora)
-     select '22222222-2222-4222-8222-000000000001', id, '2026-11-10 10:20-06' from public.personal where codigo_empleado = 'EMP-0004' $$,
-  '23P01', null, 'el paciente no puede tener dos citas que se crucen'
+     select '22222222-2222-4222-8222-000000000001', id, '2030-11-10 10:20-06' from public.personal where codigo_empleado = 'EMP-0005' $$,
+  'PT409', null, 'el paciente no puede tener dos citas que se crucen'
 );
 select lives_ok(
   $$ insert into public.citas (paciente_id, doctor_id, fecha_hora)
-     select '22222222-2222-4222-8222-000000000002', id, '2026-11-10 10:30-06' from public.personal where codigo_empleado = 'EMP-0002' $$,
+     select '22222222-2222-4222-8222-000000000002', id, '2030-11-10 10:30-06' from public.personal where codigo_empleado = 'EMP-0002' $$,
   'una cita puede empezar cuando termina la anterior'
 );
 select lives_ok(
-  $$ update public.citas set estado = 'cancelada' where fecha_hora = '2026-11-10 10:00-06';
+  $$ update public.citas set estado = 'cancelada' where fecha_hora = '2030-11-10 10:00-06';
      insert into public.citas (paciente_id, doctor_id, fecha_hora)
-     select '22222222-2222-4222-8222-000000000001', id, '2026-11-10 10:00-06' from public.personal where codigo_empleado = 'EMP-0002' $$,
+     select '22222222-2222-4222-8222-000000000001', id, '2030-11-10 10:00-06' from public.personal where codigo_empleado = 'EMP-0002' $$,
   'una cita cancelada libera el horario'
 );
 
