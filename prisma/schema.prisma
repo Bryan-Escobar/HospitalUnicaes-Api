@@ -701,12 +701,15 @@ model consultas {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model diagnosticos {
-  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  consulta_id  String           @db.Uuid
-  codigo_cie10 String?
-  descripcion  String
-  tipo         tipo_diagnostico @default(principal)
-  consultas    consultas        @relation(fields: [consulta_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  consulta_id    String           @db.Uuid
+  codigo_cie10   String?
+  descripcion    String
+  tipo           tipo_diagnostico @default(principal)
+  registrado_por String           @db.Uuid
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  consultas      consultas        @relation(fields: [consulta_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  personal       personal         @relation(fields: [registrado_por], references: [id], onUpdate: NoAction)
 
   @@index([consulta_id])
   @@schema("public")
@@ -874,8 +877,10 @@ model ordenes_laboratorio {
   prioridad       prioridad          @default(normal)
   estado          estado_laboratorio @default(pendiente)
   indicaciones    String?
+  registrado_por  String             @db.Uuid
   orden_examenes  orden_examenes[]
   consultas       consultas          @relation(fields: [consulta_id], references: [id], onUpdate: NoAction)
+  personal        personal           @relation(fields: [registrado_por], references: [id], onUpdate: NoAction)
 
   @@index([consulta_id])
   @@schema("public")
@@ -945,10 +950,13 @@ model personal {
   telefono               String?
   citas                  citas[]
   consultas              consultas[]
+  diagnosticos           diagnosticos[]
   hospitalizaciones      hospitalizaciones[]
+  ordenes_laboratorio    ordenes_laboratorio[]
   especialidades         especialidades?          @relation(fields: [especialidad_id], references: [id], onUpdate: NoAction)
   perfiles               perfiles?                @relation(fields: [perfil_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
   tipos_personal         tipos_personal           @relation(fields: [tipo_personal_id], references: [id], onUpdate: NoAction)
+  recetas                recetas[]
   resultados_laboratorio resultados_laboratorio[]
   turnos_personal        turnos_personal[]
 
@@ -1003,8 +1011,10 @@ model recetas {
   consulta_id     String            @db.Uuid
   fecha_emision   DateTime          @default(now()) @db.Timestamptz(6)
   indicaciones    String?
+  registrado_por  String            @db.Uuid
   receta_detalles receta_detalles[]
   consultas       consultas         @relation(fields: [consulta_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  personal        personal          @relation(fields: [registrado_por], references: [id], onUpdate: NoAction)
 
   @@index([consulta_id])
   @@schema("public")
