@@ -91,7 +91,14 @@ Es **idempotente**: se puede correr las veces que sea sin duplicar datos. Carga:
 - 11 habitaciones: `VIP-301`…`VIP-305` (3ª planta, 1 cama) y `HAB-201`…`HAB-206` (2ª planta, 2 camas) → 17 camas.
 - La única ambulancia (`AMB-001`, disponible).
 - Catálogos de especialidades y exámenes de laboratorio.
-- Un usuario demo por rol, más una enfermera sin cuenta (solo aparece en turnos).
+- 7 usuarios demo (abajo), 9 empleados (4 sin cuenta y 1 desactivado) y 6 pacientes con expediente (1 desactivado).
+- **Agenda relativa al día en que corre** (HUNI-51): turnos de hoy − 7 a hoy + 14 que cubren las 24 horas
+  (incluye un turno nocturno 19:00–07:00) y citas pasadas (atendidas, canceladas, no_asistio) y futuras
+  (programadas y confirmadas), siempre dentro del turno del doctor.
+- Una consulta cerrada con diagnóstico, receta y laboratorio; una orden pendiente; 2 hospitalizaciones activas;
+  avisos (públicos e internos) y 2 servicios de ambulancia finalizados.
+
+Los datos de prueba se agregan en el seed, no en cada cliente: si a tu pantalla le falta un caso, agrégalo aquí.
 
 ```bash
 supabase db reset                  # local: migraciones + seed desde cero
@@ -104,12 +111,15 @@ supabase db push --include-seed    # remoto: migraciones pendientes + seed
 | doctor | `doctor@demo.hospitalunicaes.test` | `HospitalDemo2026` |
 | recepcionista | `recepcion@demo.hospitalunicaes.test` | `HospitalDemo2026` |
 | paciente | `paciente@demo.hospitalunicaes.test` | `HospitalDemo2026` |
+| doctor (Pediatría, tarde y fines de semana) | `pediatria@demo.hospitalunicaes.test` | `HospitalDemo2026` |
+| doctor (Emergencia, noche) | `emergencia@demo.hospitalunicaes.test` | `HospitalDemo2026` |
+| paciente | `paciente2@demo.hospitalunicaes.test` | `HospitalDemo2026` |
 
 > ⚠ Esta contraseña es pública (está en el repositorio). Cámbiala en el proyecto remoto antes de la demo final.
 
 ### Tests de base de datos
 
-Tests pgTAP en `supabase/tests/database/` (seed, turnos sin solape, citas sin doble reserva, consultas cerradas y la vista del dashboard). Requieren Supabase local:
+Tests pgTAP en `supabase/tests/database/` (seed, turnos sin solape, citas sin doble reserva, consultas cerradas, la vista del dashboard, inventario y, desde HUNI-51, el RLS y las RPC de turnos y citas simulando el JWT de cada rol). Requieren Supabase local:
 
 ```bash
 supabase start
@@ -162,6 +172,49 @@ npx @stoplight/prism-cli mock http://localhost:3000/docs.json
 o importando `/docs.json` en Postman (Mock server).
 
 Al implementar un endpoint, pon `estado: 'implementado'` en su `src/docs/paths/<modulo>.docs.ts`. Un test (`test/docs/contrato.test.ts`) falla si el estado documentado no coincide con lo que responde la API.
+
+## Turnos y citas directo desde Supabase (HUNI-51)
+
+Turnos y citas **no pasan por la API Express**: los clientes los leen y escriben con el SDK de Supabase,
+con el `access_token` del usuario. Las reglas viven en la base (RLS + triggers + RPC), así que aplican igual
+desde iOS, Android y Web.
+
+| Qué | Cómo | Quién |
+|---|---|---|
+| Ver turnos (con nombre, tipo y especialidad) | `from('v_turnos').select()` | Cualquier usuario con sesión |
+| Crear / editar turnos | `from('turnos_personal').insert(...)` / `.update(...)` | Administrador y recepcionista |
+| Borrar turnos | `from('turnos_personal').delete()` | Administrador |
+| Ver citas (con nombres de paciente y doctor) | `from('v_citas').select()` | Admin y recepción: todas · doctor: las suyas · paciente: las suyas |
+| Crear cita | `rpc('crear_cita', { p_paciente_id, p_doctor_id, p_fecha_hora, p_duracion_minutos, p_motivo })` | Administrador y recepcionista |
+| Doctores libres en una franja | `rpc('doctores_disponibles', { p_fecha_hora, p_duracion_minutos, p_especialidad_id?, p_excluir_cita_id? })` | Administrador y recepcionista |
+| Cambiar doctor o fecha | `rpc('reprogramar_cita', { p_cita_id, p_fecha_hora?, p_doctor_id?, p_duracion_minutos? })` | Administrador y recepcionista |
+| Cambiar estado | `from('citas').update({ estado }).eq('id', id)` | Paciente: solo `cancelada` · doctor: `confirmada`, `atendida`, `no_asistio` |
+
+```ts
+const { data, error } = await supabase.rpc('crear_cita', {
+  p_paciente_id: pacienteId,
+  p_doctor_id: doctorId,
+  p_fecha_hora: '2026-11-03T09:00:00-06:00',
+  p_duracion_minutos: 30,
+});
+if (error) {
+  const code = error.message.split(':')[0]; // 'CITA_DUPLICADA', 'CITA_FUERA_DE_TURNO', ...
+}
+```
+
+Los errores llegan como `{ code: 'PTxxx', message: 'CODIGO: detalle legible' }`. Decide con el `CODIGO` del inicio del
+mensaje (mismo catálogo que `ERROR_CODES` de la API) y muestra el detalle si quieres; el HTTP coincide con el catálogo:
+
+| Código | HTTP | Cuándo |
+|---|---|---|
+| `TURNO_SOLAPADO` | 409 | El empleado ya tiene otro turno que se cruza |
+| `CITA_DUPLICADA` | 409 | El doctor o el paciente ya tiene una cita activa en ese horario |
+| `CITA_FUERA_DE_TURNO` | 422 | El turno del doctor no cubre la cita completa (inicio y fin, hora de El Salvador) |
+| `TRANSICION_INVALIDA` | 422 | Cambio de estado no permitido (o la cita ya no está programada/confirmada) |
+| `ACCESO_DENEGADO` | 403 | El rol no puede hacer esa operación |
+
+Nadie inserta en `citas` directo (403): se crean con `crear_cita()`. La colección de Postman
+*HospitalUnicaes API · HUNI-51* prueba cada regla contra el proyecto remoto.
 
 ## Estructura del Proyecto
 

@@ -40,6 +40,17 @@ describe('Errores estándar', () => {
     });
   });
 
+  test.each([
+    ['TURNO_SOLAPADO: el empleado ya tiene un turno el 10/11/2026 de 07:00 a 15:00', 409, 'TURNO_SOLAPADO'],
+    ['CITA_DUPLICADA: el doctor ya tiene una cita el 10/11/2026 a las 10:00', 409, 'CITA_DUPLICADA'],
+    ['CITA_FUERA_DE_TURNO: el doctor no está de turno el 10/11/2026 de 18:00 a 18:30', 422, 'CITA_FUERA_DE_TURNO'],
+  ])('traduce el error de turnos y citas de la BD: %s', (mensaje, statusCode, code) => {
+    expect(handleError(new Error(`Raw query failed. Code: \`PT409\`. Message: \`${mensaje}\``))).toMatchObject({
+      statusCode,
+      code,
+    });
+  });
+
   test('un texto en mayúsculas que no es del catálogo sigue siendo error interno', () => {
     expect(handleError(new Error('FOO_BAR: algo raro'))).toMatchObject({ statusCode: 500, code: 'ERROR_INTERNO' });
   });
