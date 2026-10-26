@@ -25,7 +25,8 @@ registerEndpoint({
   tag: TAG,
   summary: 'Catálogo de exámenes',
   roles: ['administrador', 'doctor', 'recepcionista'],
-  ticket: 'HUNI-62',
+  ticket: 'HUNI-57',
+  estado: 'implementado',
   response: { description: 'Exámenes activos', schema: z.array(ExamenCatalogoSchema) },
 });
 
@@ -34,12 +35,15 @@ registerEndpoint({
   path: '/api/laboratorio/ordenes',
   tag: TAG,
   summary: 'Solicitar exámenes',
-  description: 'Crea la orden en estado `pendiente` con un examen por cada id del catálogo.',
+  description:
+    'Crea la orden en estado `pendiente` con un examen por cada id del catálogo (los repetidos se ignoran). ' +
+    'Solo el doctor que registró la consulta y mientras esté abierta; queda como `registrado_por`.',
   roles: ['doctor'],
-  ticket: 'HUNI-62',
+  ticket: 'HUNI-57',
+  estado: 'implementado',
   request: { body: jsonBody(crearOrdenBodySchema) },
   response: { status: 201, description: 'Orden creada', schema: OrdenLaboratorioSchema },
-  errores: { 400: ['REFERENCIA_INVALIDA'], 409: ['CONSULTA_CERRADA'] },
+  errores: { 400: ['REFERENCIA_INVALIDA'], 403: ['PERFIL_INCOMPLETO'], 409: ['CONSULTA_CERRADA'] },
 });
 
 registerEndpoint({
