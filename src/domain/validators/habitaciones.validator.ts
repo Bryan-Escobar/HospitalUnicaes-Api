@@ -55,3 +55,12 @@ export const listarHospitalizacionesQuerySchema = paginacionQuerySchema.extend({
   estado: EstadoHospitalizacionSchema.optional(),
   paciente_id: z.uuid().optional(),
 });
+
+export type ListarHabitacionesQuery = z.infer<typeof listarHabitacionesQuerySchema>;
+export type ListarCamasQuery = z.infer<typeof listarCamasQuerySchema>;
+export type SugerenciaCamaQuery = z.infer<typeof sugerenciaCamaQuerySchema>;
+export type CambiarEstadoCamaBody = z.infer<typeof cambiarEstadoCamaBodySchema>;
+export type CrearHospitalizacionBody = z.infer<typeof crearHospitalizacionBodySchema>;
+export type TrasladoBody = z.infer<typeof trasladoBodySchema>;
+export type AltaBody = z.infer<typeof altaBodySchema>;
+export type ListarHospitalizacionesQuery = z.infer<typeof listarHospitalizacionesQuerySchema>;
