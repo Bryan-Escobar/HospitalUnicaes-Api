@@ -27,10 +27,14 @@ export const handleError = (error: unknown): ErrorHandlerInterface => {
     }
   }
 
-  // Reglas que valida la BD con triggers: lanzan 'CODIGO: detalle' (p. ej. CONSULTA_CERRADA).
+  // Reglas que valida la BD con triggers o funciones: lanzan 'CODIGO: detalle' (p. ej. CONSULTA_CERRADA).
+  // En consultas crudas Prisma antepone 'ERROR: ', así que se toma el primer código que exista en el catálogo.
   // Se responde con la descripción del catálogo, sin reenviar el texto de la BD.
-  const dbCode = error instanceof Error ? /\b([A-Z][A-Z_]{2,}):/.exec(error.message)?.[1] : undefined;
-  if (dbCode && dbCode in ERROR_CODES) {
+  const dbCode =
+    error instanceof Error
+      ? [...error.message.matchAll(/\b([A-Z][A-Z_]{2,}):/g)].map((m) => m[1]).find((c) => c in ERROR_CODES)
+      : undefined;
+  if (dbCode) {
     const code = dbCode as ErrorCode;
     return { statusCode: ERROR_CODES[code].status, code, message: ERROR_CODES[code].descripcion };
   }

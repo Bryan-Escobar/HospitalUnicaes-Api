@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AuthRoutes } from './Auth/routes';
 import { ConsultasRoutes } from './Consultas/routes';
 import { DashboardRoutes } from './Dashboard/routes';
+import { CamasRoutes, HabitacionesRoutes, HospitalizacionesRoutes } from './Habitaciones/routes';
 import { HealthRoutes } from './Health/routes';
 import { LaboratorioRoutes } from './Laboratorio/routes';
 import { PacientesRoutes } from './Pacientes/routes';
@@ -22,6 +23,9 @@ export class AppRoutes {
     router.use('/api/dashboard', DashboardRoutes.routes);
     router.use('/api/consultas', ConsultasRoutes.routes);
     router.use('/api/laboratorio', LaboratorioRoutes.routes);
+    router.use('/api/habitaciones', HabitacionesRoutes.routes);
+    router.use('/api/camas', CamasRoutes.routes);
+    router.use('/api/hospitalizaciones', HospitalizacionesRoutes.routes);
 
     return router;
   }

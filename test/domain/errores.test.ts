@@ -51,6 +51,14 @@ describe('Errores estándar', () => {
     });
   });
 
+  test('traduce el error de una función de Postgres llamada con $queryRaw (Prisma antepone "ERROR: ")', () => {
+    const errorPrisma = new Error(
+      'Invalid `prisma.$queryRaw()` invocation:\n\nRaw query failed. Code: `PT409`. ' +
+        'Message: `ERROR: CAMA_OCUPADA: la cama VIP-301-A ya tiene un paciente`',
+    );
+    expect(toErrorResponse(errorPrisma)).toMatchObject({ statusCode: 409, code: 'CAMA_OCUPADA' });
+  });
+
   test('un texto en mayúsculas que no es del catálogo sigue siendo error interno', () => {
     expect(handleError(new Error('FOO_BAR: algo raro'))).toMatchObject({ statusCode: 500, code: 'ERROR_INTERNO' });
   });

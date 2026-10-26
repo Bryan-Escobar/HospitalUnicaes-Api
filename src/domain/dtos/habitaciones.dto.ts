@@ -1,6 +1,6 @@
 import { z } from '../../lib/zod';
 import { DoctorResumenSchema, fechaHora, PersonaResumenSchema, uuidOut } from './common.dto';
-import { EstadoCamaSchema, EstadoHospitalizacionSchema, TipoHabitacionSchema } from './enums';
+import { EstadoCamaSchema, EstadoHospitalizacionSchema, SexoSchema, TipoHabitacionSchema } from './enums';
 
 export const CamaSchema = z
   .object({
@@ -30,9 +30,19 @@ export const HabitacionSchema = z
         codigo: z.string().openapi({ example: 'VIP-301-A' }),
         estado: EstadoCamaSchema,
         ocupante: z
-          .object({ hospitalizacion_id: uuidOut, paciente: PersonaResumenSchema, fecha_ingreso: fechaHora })
+          .object({
+            hospitalizacion_id: uuidOut,
+            paciente: PersonaResumenSchema.extend({
+              sexo: SexoSchema.nullable().openapi({ description: 'Para que el cliente marque las camas por sexo' }),
+            }),
+            fecha_ingreso: fechaHora,
+          })
           .nullable()
-          .openapi({ description: 'Paciente actual. Privado: no aparece en los endpoints públicos.' }),
+          .openapi({
+            description:
+              'Paciente actual. Privado: no aparece en los endpoints públicos, y un `doctor` solo lo ve si es su ' +
+              'médico tratante (si no, la cama sale `ocupada` con ocupante null).',
+          }),
       }),
     ),
   })
@@ -47,9 +57,27 @@ export const HospitalizacionSchema = z
     fecha_ingreso: fechaHora,
     fecha_alta: fechaHora.nullable(),
     motivo_ingreso: z.string().nullable(),
+    notas_alta: z.string().nullable().openapi({ example: 'Alta médica, control en 7 días' }),
     estado: EstadoHospitalizacionSchema,
   })
   .openapi('Hospitalizacion', { description: 'Privado: la habitación de un paciente no es información pública.' });
+
+const camaResumen = z.object({ id: uuidOut, codigo: z.string().openapi({ example: 'HAB-201-A' }) });
+
+export const MovimientoCamaSchema = z
+  .object({
+    tipo: z.enum(['ingreso', 'traslado', 'alta']),
+    cama_origen: camaResumen.nullable().openapi({ description: 'null en el ingreso' }),
+    cama_destino: camaResumen.nullable().openapi({ description: 'null en el alta' }),
+    registrado_por: PersonaResumenSchema.nullable(),
+    notas: z.string().nullable(),
+    created_at: fechaHora,
+  })
+  .openapi('MovimientoCama');
+
+export const HospitalizacionDetalleSchema = HospitalizacionSchema.extend({
+  movimientos: z.array(MovimientoCamaSchema).openapi({ description: 'Historial: ingreso, traslados y alta, en orden' }),
+}).openapi('HospitalizacionDetalle');
 
 const conteo = z.object({
   ocupadas: z.number().int().openapi({ example: 3 }),

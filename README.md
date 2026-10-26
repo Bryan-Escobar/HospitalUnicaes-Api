@@ -192,6 +192,27 @@ Endpoints de la API (detalle en `/docs`, etiqueta *Consultas* y *Laboratorio*):
 - La receta **no descuenta stock**: `item_id` es solo una referencia opcional al inventario.
 - Paciente que no existe → 400 `REFERENCIA_INVALIDA`; desactivado → 422 `REGLA_DE_NEGOCIO`.
 
+## Camas y hospitalizaciones (HUNI-66)
+
+3ª planta: `VIP-301`…`VIP-305` (1 cama, 1 paciente). 2ª planta: `HAB-201`…`HAB-206` (2 camas, 2 pacientes).
+
+| Qué | Endpoint | Quién |
+|---|---|---|
+| Mapa con ocupantes (y su `sexo`) | `GET /api/habitaciones` | Admin y recepción; el doctor solo ve a los pacientes que atiende |
+| Camas / sugerencia | `GET /api/camas` · `GET /api/camas/sugerencia?tipo=vip\|semiprivada` | Admin y recepción |
+| Ingreso (asignar cama) | `POST /api/hospitalizaciones` con `cama_id` o `tipo_habitacion` | Admin y recepción |
+| Traslado / alta | `POST /api/hospitalizaciones/{id}/traslado` · `/alta` | Admin y recepción |
+| Ver hospitalizaciones (con historial) | `GET /api/hospitalizaciones` · `GET /api/hospitalizaciones/{id}` | Admin, recepción, médico tratante y el paciente |
+| Cama lista tras limpieza | `PATCH /api/camas/{id}/estado` (`disponible`, `limpieza`, `mantenimiento`) | Admin y recepción |
+
+- La sugerencia elige primero una habitación **vacía**; si no hay, cualquier cama libre del tipo. No mezcla ni bloquea por sexo.
+- Ingresar, trasladar y dar de alta son funciones de Postgres (`asignar_cama`, `trasladar_cama`, `dar_alta`) que bloquean la
+  fila de la cama: dos solicitudes por la misma o la última cama → solo una gana (409 `CAMA_OCUPADA` / `SIN_CAMAS_DISPONIBLES`).
+- Paciente que ya tiene cama → 409 `PACIENTE_YA_HOSPITALIZADO`. Tras el alta o un traslado, la cama queda en `limpieza`.
+- Cada ingreso, traslado y alta queda en `movimientos_cama` (en el detalle, `movimientos`).
+- **Tiempo real:** suscríbete a `postgres_changes` de `camas` (cualquier usuario con sesión; no trae pacientes) y de
+  `hospitalizaciones` (solo quien puede verlas, por RLS).
+
 ## Laboratorio: órdenes y resultados (HUNI-62)
 
 Cada examen sigue `pendiente → en_proceso → completado`; cualquier otra transición → 422 `TRANSICION_INVALIDA`
