@@ -192,6 +192,31 @@ Endpoints de la API (detalle en `/docs`, etiqueta *Consultas* y *Laboratorio*):
 - La receta **no descuenta stock**: `item_id` es solo una referencia opcional al inventario.
 - Paciente que no existe → 400 `REFERENCIA_INVALIDA`; desactivado → 422 `REGLA_DE_NEGOCIO`.
 
+## Laboratorio: órdenes y resultados (HUNI-62)
+
+Cada examen sigue `pendiente → en_proceso → completado`; cualquier otra transición → 422 `TRANSICION_INVALIDA`
+(lo valida la API y también la base de datos). El estado de la orden sale de sus exámenes.
+
+| Qué | Endpoint | Quién |
+|---|---|---|
+| Listar / ver órdenes | `GET /api/laboratorio/ordenes` · `GET /api/laboratorio/ordenes/{id}` | Admin y recepción: todas · doctor: de pacientes que atiende · paciente: las suyas |
+| Iniciar examen (toma de muestra) | `PATCH …/examenes/{orden_examen_id}/estado` con `{ "estado": "en_proceso" }` | Admin y recepción |
+| Registrar resultado y completar | `PUT …/examenes/{orden_examen_id}/resultado` (`multipart/form-data`: `valor`, `unidad`, `rango_referencia`, `observaciones`, `archivo` PDF ≤ 10 MB) | Admin y recepción; sin valor ni PDF → 422 `RESULTADO_REQUERIDO` |
+| Descargar el PDF | `GET …/examenes/{orden_examen_id}/resultado/archivo` → URL firmada (10 min) | Médico tratante, el paciente y admin (recepción no) |
+
+- Los PDF viven en el bucket **privado** `resultados-laboratorio` de Supabase Storage; solo la API escribe y firma.
+- **Tiempo real:** suscríbete con el SDK a `postgres_changes` de `orden_examenes` (o `ordenes_laboratorio`). El RLS hace que
+  cada usuario reciba solo sus órdenes. El aviso trae el estado; para ver el resultado, vuelve a pedir la orden a la API.
+
+```ts
+supabase
+  .channel('laboratorio')
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orden_examenes' }, () => recargarOrdenes())
+  .subscribe();
+```
+
+- Archivos de prueba para Postman: `test/fixtures/resultado-laboratorio.pdf` y `test/fixtures/no-es-pdf.txt`.
+
 ## Turnos y citas directo desde Supabase (HUNI-51)
 
 Turnos y citas **no pasan por la API Express**: los clientes los leen y escriben con el SDK de Supabase,
