@@ -464,6 +464,91 @@ where ec.nombre = 'Glucosa en ayunas'
   and not exists (select 1 from public.orden_examenes oe where oe.id = '55555555-5555-4555-8555-000000000043');
 
 -- -----------------------------------------------------------------------------
+-- Historial clínico (HUNI-57): más casos para probar consultas, recetas y laboratorio
+--   · Emergencia (Fernando) con Jorge: cerrada, 2 diagnósticos, receta y un examen completado
+--   · Pediatría (Gabriela) con Daniela: abierta, receta con item_id del inventario (solo referencia:
+--     no descuenta stock) y una orden pendiente. Gabriela puede seguir agregando cosas.
+-- -----------------------------------------------------------------------------
+insert into public.consultas (id, expediente_id, doctor_id, fecha, motivo_consulta, signos_vitales, examen_fisico, notas)
+select c.id::uuid, e.id, d.id, now() - c.hace, c.motivo, c.signos::jsonb, c.examen, c.notas
+from (values
+  ('55555555-5555-4555-8555-000000000003', 'Jorge', 'Hernández Alas', 'EMP-0006', interval '1 day 1 hour',
+   'Cefalea intensa y presión alta', '{"presion_arterial": "180/110", "frecuencia_cardiaca": 96, "temperatura": 36.9}',
+   'Consciente, sin déficit neurológico', 'Se ingresa a observación en HAB-201-A'),
+  ('55555555-5555-4555-8555-000000000004', 'Daniela', 'Pineda Morán', 'EMP-0005', interval '2 hours',
+   'Tos y sibilancias de 3 días', '{"temperatura": 37.4, "saturacion_oxigeno": 95, "peso_kg": 24}',
+   'Sibilancias espiratorias leves', 'Control en 48 horas')
+) as c (id, nombres, apellidos, doctor, hace, motivo, signos, examen, notas)
+join public.pacientes pa on pa.nombres = c.nombres and pa.apellidos = c.apellidos
+join public.expedientes e on e.paciente_id = pa.id
+join public.personal d on d.codigo_empleado = c.doctor
+on conflict (id) do nothing;
+
+insert into public.diagnosticos (id, consulta_id, codigo_cie10, descripcion, tipo)
+select x.id::uuid, x.consulta::uuid, x.cie10, x.descripcion, x.tipo::public.tipo_diagnostico
+from (values
+  ('55555555-5555-4555-8555-000000000012', '55555555-5555-4555-8555-000000000003', 'I16.0', 'Urgencia hipertensiva', 'principal'),
+  ('55555555-5555-4555-8555-000000000013', '55555555-5555-4555-8555-000000000003', 'G44.2', 'Cefalea tensional', 'secundario'),
+  ('55555555-5555-4555-8555-000000000014', '55555555-5555-4555-8555-000000000004', 'J45.9', 'Asma, no especificada', 'principal')
+) as x (id, consulta, cie10, descripcion, tipo)
+join public.consultas c on c.id = x.consulta::uuid and c.cerrada_en is null
+where not exists (select 1 from public.diagnosticos d where d.id = x.id::uuid);
+
+insert into public.recetas (id, consulta_id, indicaciones)
+select x.id::uuid, x.consulta::uuid, x.indicaciones
+from (values
+  ('55555555-5555-4555-8555-000000000022', '55555555-5555-4555-8555-000000000003', 'Control de presión diario; volver si hay dolor de pecho'),
+  ('55555555-5555-4555-8555-000000000023', '55555555-5555-4555-8555-000000000004', 'Dosis pediátrica según peso')
+) as x (id, consulta, indicaciones)
+join public.consultas c on c.id = x.consulta::uuid and c.cerrada_en is null
+where not exists (select 1 from public.recetas r where r.id = x.id::uuid);
+
+insert into public.receta_detalles (receta_id, item_id, medicamento, dosis, frecuencia, duracion, cantidad)
+select x.receta::uuid, i.id, x.medicamento, x.dosis, x.frecuencia, x.duracion, x.cantidad
+from (values
+  ('55555555-5555-4555-8555-000000000022', null,       'Losartán 50 mg',          '1 tableta', 'Cada 12 horas',  '30 días', 60),
+  ('55555555-5555-4555-8555-000000000023', 'MED-0001', 'Paracetamol 500 mg',      '1/2 tableta', 'Cada 8 horas si hay fiebre', '3 días', 5),
+  ('55555555-5555-4555-8555-000000000023', null,       'Salbutamol inhalador',    '2 inhalaciones', 'Cada 6 horas', '5 días', 1)
+) as x (receta, codigo_item, medicamento, dosis, frecuencia, duracion, cantidad)
+left join public.inventario_items i on i.codigo = x.codigo_item
+join public.recetas r on r.id = x.receta::uuid
+join public.consultas c on c.id = r.consulta_id and c.cerrada_en is null
+where not exists (select 1 from public.receta_detalles d where d.receta_id = x.receta::uuid and d.medicamento = x.medicamento);
+
+insert into public.ordenes_laboratorio (id, consulta_id, indicaciones, estado, prioridad)
+select x.id::uuid, x.consulta::uuid, x.indicaciones, x.estado::public.estado_laboratorio, x.prioridad::public.prioridad
+from (values
+  ('55555555-5555-4555-8555-000000000033', '55555555-5555-4555-8555-000000000003', 'Urgente: descartar daño renal', 'completado', 'critica'),
+  ('55555555-5555-4555-8555-000000000034', '55555555-5555-4555-8555-000000000004', null, 'pendiente', 'normal')
+) as x (id, consulta, indicaciones, estado, prioridad)
+join public.consultas c on c.id = x.consulta::uuid and c.cerrada_en is null
+where not exists (select 1 from public.ordenes_laboratorio o where o.id = x.id::uuid);
+
+insert into public.orden_examenes (id, orden_id, examen_id, estado, fecha_inicio, fecha_completado)
+select x.id::uuid, x.orden::uuid, ec.id, x.estado::public.estado_laboratorio,
+       case when x.estado <> 'pendiente' then now() - interval '1 day' end,
+       case when x.estado = 'completado' then now() - interval '20 hours' end
+from (values
+  ('55555555-5555-4555-8555-000000000044', '55555555-5555-4555-8555-000000000033', 'Creatinina',         'completado'),
+  ('55555555-5555-4555-8555-000000000045', '55555555-5555-4555-8555-000000000034', 'Hemograma completo', 'pendiente'),
+  ('55555555-5555-4555-8555-000000000046', '55555555-5555-4555-8555-000000000034', 'Radiografía de tórax', 'pendiente')
+) as x (id, orden, examen, estado)
+join public.examenes_catalogo ec on ec.nombre = x.examen
+join public.ordenes_laboratorio o on o.id = x.orden::uuid
+join public.consultas c on c.id = o.consulta_id and c.cerrada_en is null
+where not exists (select 1 from public.orden_examenes oe where oe.id = x.id::uuid);
+
+insert into public.resultados_laboratorio (orden_examen_id, valor, unidad, rango_referencia, observaciones, validado_por)
+select '55555555-5555-4555-8555-000000000044', '1.1', 'mg/dL', '0.7 – 1.3', 'Función renal conservada', d.id
+from public.personal d
+where d.codigo_empleado = 'EMP-0006'
+  and exists (select 1 from public.orden_examenes x where x.id = '55555555-5555-4555-8555-000000000044')
+  and not exists (select 1 from public.resultados_laboratorio x where x.orden_examen_id = '55555555-5555-4555-8555-000000000044');
+
+update public.consultas set cerrada_en = fecha + interval '1 hour'
+where id = '55555555-5555-4555-8555-000000000003' and cerrada_en is null;
+
+-- -----------------------------------------------------------------------------
 -- Hospitalizaciones activas (ocupación del dashboard y "médico tratante")
 -- -----------------------------------------------------------------------------
 insert into public.hospitalizaciones (paciente_id, cama_id, doctor_tratante_id, fecha_ingreso, motivo_ingreso)
