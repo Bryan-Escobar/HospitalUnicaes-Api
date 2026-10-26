@@ -19,7 +19,7 @@ export type CambiosPaciente = Partial<Omit<DatosNuevoPaciente, 'alergias'>> & { 
  * Médico tratante (context.md §3.4): el doctor tiene una cita no cancelada, una consulta
  * o una hospitalización con el paciente.
  */
-const tratadoPor = (personalId: string): Prisma.pacientesWhereInput => ({
+export const tratadoPor = (personalId: string): Prisma.pacientesWhereInput => ({
   OR: [
     { citas: { some: { doctor_id: personalId, estado: { not: 'cancelada' } } } },
     { expedientes: { is: { consultas: { some: { doctor_id: personalId } } } } },

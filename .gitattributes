@@ -1,0 +1,4 @@
+# Archivos binarios: git no debe convertir finales de línea (corrompería el PDF de prueba de HUNI-62)
+*.pdf binary
+*.png binary
+*.jpg binary

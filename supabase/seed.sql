@@ -412,30 +412,36 @@ from public.recetas r
 where r.id = '55555555-5555-4555-8555-000000000021'
   and not exists (select 1 from public.receta_detalles x where x.receta_id = r.id);
 
-insert into public.ordenes_laboratorio (id, consulta_id, indicaciones, estado, prioridad)
-select '55555555-5555-4555-8555-000000000031', c.id, 'En ayunas de 8 horas', 'en_proceso', 'normal'
+insert into public.ordenes_laboratorio (id, consulta_id, indicaciones, prioridad)
+select '55555555-5555-4555-8555-000000000031', c.id, 'En ayunas de 8 horas', 'normal'
 from public.consultas c
 where c.id = '55555555-5555-4555-8555-000000000001' and c.cerrada_en is null
   and not exists (select 1 from public.ordenes_laboratorio x where x.id = '55555555-5555-4555-8555-000000000031');
 
-insert into public.orden_examenes (id, orden_id, examen_id, estado, fecha_inicio, fecha_completado)
-select x.id::uuid, '55555555-5555-4555-8555-000000000031', ec.id, x.estado::public.estado_laboratorio,
-       case when x.estado <> 'pendiente' then now() - interval '2 days' end,
-       case when x.estado = 'completado' then now() - interval '1 day' end
+insert into public.orden_examenes (id, orden_id, examen_id)
+select x.id::uuid, '55555555-5555-4555-8555-000000000031', ec.id
 from (values
-  ('55555555-5555-4555-8555-000000000041', 'Hemograma completo', 'completado'),
-  ('55555555-5555-4555-8555-000000000042', 'Glucosa en ayunas',  'pendiente')
-) as x (id, examen, estado)
+  ('55555555-5555-4555-8555-000000000041', 'Hemograma completo'),
+  ('55555555-5555-4555-8555-000000000042', 'Glucosa en ayunas')
+) as x (id, examen)
 join public.examenes_catalogo ec on ec.nombre = x.examen
 where exists (select 1 from public.ordenes_laboratorio o where o.id = '55555555-5555-4555-8555-000000000031')
   and not exists (select 1 from public.orden_examenes oe where oe.id = x.id::uuid);
 
+-- Avanza por la máquina de estados (HUNI-62): pendiente → en_proceso → resultado → completado.
+-- Recepción (Lucía, EMP-0003) procesa los exámenes y registra el resultado.
+update public.orden_examenes set estado = 'en_proceso', fecha_inicio = now() - interval '2 days'
+where id = '55555555-5555-4555-8555-000000000041' and estado = 'pendiente';
+
 insert into public.resultados_laboratorio (orden_examen_id, valor, unidad, rango_referencia, observaciones, validado_por)
-select '55555555-5555-4555-8555-000000000041', '13.8', 'g/dL', '13.0 – 17.0', 'Hemoglobina dentro de rango', d.id
-from public.personal d
-where d.codigo_empleado = 'EMP-0002'
-  and exists (select 1 from public.orden_examenes x where x.id = '55555555-5555-4555-8555-000000000041')
-  and not exists (select 1 from public.resultados_laboratorio x where x.orden_examen_id = '55555555-5555-4555-8555-000000000041');
+select oe.id, '13.8', 'g/dL', '13.0 – 17.0', 'Hemoglobina dentro de rango', d.id
+from public.orden_examenes oe
+join public.personal d on d.codigo_empleado = 'EMP-0003'
+where oe.id = '55555555-5555-4555-8555-000000000041' and oe.estado = 'en_proceso'
+  and not exists (select 1 from public.resultados_laboratorio x where x.orden_examen_id = oe.id);
+
+update public.orden_examenes set estado = 'completado', fecha_completado = now() - interval '1 day'
+where id = '55555555-5555-4555-8555-000000000041' and estado = 'en_proceso';
 
 update public.consultas set cerrada_en = fecha + interval '40 minutes'
 where id = '55555555-5555-4555-8555-000000000001' and cerrada_en is null;
@@ -450,8 +456,8 @@ join public.personal d on d.codigo_empleado = 'EMP-0002'
 where pa.nombres = 'Rosa Elena' and pa.apellidos = 'Guzmán de Flores'
 on conflict (id) do nothing;
 
-insert into public.ordenes_laboratorio (id, consulta_id, indicaciones, estado, prioridad)
-select '55555555-5555-4555-8555-000000000032', c.id, 'Control trimestral', 'pendiente', 'urgente'
+insert into public.ordenes_laboratorio (id, consulta_id, indicaciones, prioridad)
+select '55555555-5555-4555-8555-000000000032', c.id, 'Control trimestral', 'urgente'
 from public.consultas c
 where c.id = '55555555-5555-4555-8555-000000000002' and c.cerrada_en is null
   and not exists (select 1 from public.ordenes_laboratorio x where x.id = '55555555-5555-4555-8555-000000000032');
@@ -515,35 +521,45 @@ join public.recetas r on r.id = x.receta::uuid
 join public.consultas c on c.id = r.consulta_id and c.cerrada_en is null
 where not exists (select 1 from public.receta_detalles d where d.receta_id = x.receta::uuid and d.medicamento = x.medicamento);
 
-insert into public.ordenes_laboratorio (id, consulta_id, indicaciones, estado, prioridad)
-select x.id::uuid, x.consulta::uuid, x.indicaciones, x.estado::public.estado_laboratorio, x.prioridad::public.prioridad
+insert into public.ordenes_laboratorio (id, consulta_id, indicaciones, prioridad)
+select x.id::uuid, x.consulta::uuid, x.indicaciones, x.prioridad::public.prioridad
 from (values
-  ('55555555-5555-4555-8555-000000000033', '55555555-5555-4555-8555-000000000003', 'Urgente: descartar daño renal', 'completado', 'critica'),
-  ('55555555-5555-4555-8555-000000000034', '55555555-5555-4555-8555-000000000004', null, 'pendiente', 'normal')
-) as x (id, consulta, indicaciones, estado, prioridad)
+  ('55555555-5555-4555-8555-000000000033', '55555555-5555-4555-8555-000000000003', 'Urgente: descartar daño renal', 'critica'),
+  ('55555555-5555-4555-8555-000000000034', '55555555-5555-4555-8555-000000000004', null, 'normal')
+) as x (id, consulta, indicaciones, prioridad)
 join public.consultas c on c.id = x.consulta::uuid and c.cerrada_en is null
 where not exists (select 1 from public.ordenes_laboratorio o where o.id = x.id::uuid);
 
-insert into public.orden_examenes (id, orden_id, examen_id, estado, fecha_inicio, fecha_completado)
-select x.id::uuid, x.orden::uuid, ec.id, x.estado::public.estado_laboratorio,
-       case when x.estado <> 'pendiente' then now() - interval '1 day' end,
-       case when x.estado = 'completado' then now() - interval '20 hours' end
+insert into public.orden_examenes (id, orden_id, examen_id)
+select x.id::uuid, x.orden::uuid, ec.id
 from (values
-  ('55555555-5555-4555-8555-000000000044', '55555555-5555-4555-8555-000000000033', 'Creatinina',         'completado'),
-  ('55555555-5555-4555-8555-000000000045', '55555555-5555-4555-8555-000000000034', 'Hemograma completo', 'pendiente'),
-  ('55555555-5555-4555-8555-000000000046', '55555555-5555-4555-8555-000000000034', 'Radiografía de tórax', 'pendiente')
-) as x (id, orden, examen, estado)
+  ('55555555-5555-4555-8555-000000000044', '55555555-5555-4555-8555-000000000033', 'Creatinina'),
+  ('55555555-5555-4555-8555-000000000045', '55555555-5555-4555-8555-000000000034', 'Hemograma completo'),
+  ('55555555-5555-4555-8555-000000000046', '55555555-5555-4555-8555-000000000034', 'Radiografía de tórax')
+) as x (id, orden, examen)
 join public.examenes_catalogo ec on ec.nombre = x.examen
 join public.ordenes_laboratorio o on o.id = x.orden::uuid
 join public.consultas c on c.id = o.consulta_id and c.cerrada_en is null
 where not exists (select 1 from public.orden_examenes oe where oe.id = x.id::uuid);
 
+-- Avanza por la máquina de estados (HUNI-62): pendiente → en_proceso → resultado → completado.
+-- Recepción (Lucía, EMP-0003) procesa los exámenes y registra el resultado.
+update public.orden_examenes set estado = 'en_proceso', fecha_inicio = now() - interval '1 day'
+where id = '55555555-5555-4555-8555-000000000044' and estado = 'pendiente';
+
 insert into public.resultados_laboratorio (orden_examen_id, valor, unidad, rango_referencia, observaciones, validado_por)
-select '55555555-5555-4555-8555-000000000044', '1.1', 'mg/dL', '0.7 – 1.3', 'Función renal conservada', d.id
-from public.personal d
-where d.codigo_empleado = 'EMP-0006'
-  and exists (select 1 from public.orden_examenes x where x.id = '55555555-5555-4555-8555-000000000044')
-  and not exists (select 1 from public.resultados_laboratorio x where x.orden_examen_id = '55555555-5555-4555-8555-000000000044');
+select oe.id, '1.1', 'mg/dL', '0.7 – 1.3', 'Función renal conservada', d.id
+from public.orden_examenes oe
+join public.personal d on d.codigo_empleado = 'EMP-0003'
+where oe.id = '55555555-5555-4555-8555-000000000044' and oe.estado = 'en_proceso'
+  and not exists (select 1 from public.resultados_laboratorio x where x.orden_examen_id = oe.id);
+
+update public.orden_examenes set estado = 'completado', fecha_completado = now() - interval '20 hours'
+where id = '55555555-5555-4555-8555-000000000044' and estado = 'en_proceso';
+
+-- Hemograma de Daniela ya tomado (en proceso), para probar la cola de laboratorio y el registro de resultado
+update public.orden_examenes set estado = 'en_proceso', fecha_inicio = now() - interval '1 hour'
+where id = '55555555-5555-4555-8555-000000000045' and estado = 'pendiente';
 
 update public.consultas set cerrada_en = fecha + interval '1 hour'
 where id = '55555555-5555-4555-8555-000000000003' and cerrada_en is null;

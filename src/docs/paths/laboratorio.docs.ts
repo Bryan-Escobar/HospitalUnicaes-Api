@@ -16,8 +16,14 @@ import { z } from '../../lib/zod';
 import { jsonBody, paginado, registerEndpoint } from '../registry';
 
 const TAG = 'Laboratorio';
-const REALTIME = 'Cada cambio de estado se emite por Supabase Realtime (tabla `orden_examenes`).';
-const ROLES_LAB = 'Quién procesa los exámenes está **por definir** en la matriz RBAC (HUNI-75).';
+const REALTIME =
+  'Cada cambio de estado se emite por Supabase Realtime (`postgres_changes` en `orden_examenes` y ' +
+  '`ordenes_laboratorio`); el RLS hace que cada cliente reciba solo las órdenes que puede ver. ' +
+  'El aviso trae el estado, no el valor del resultado: el cliente vuelve a pedir la orden a esta API.';
+const ROLES_LAB =
+  'Procesan los exámenes administración y recepción (Recepcionista/Asistente) hasta que exista un rol de ' +
+  'laboratorio (HUNI-75); `validado_por` guarda quién registró el resultado.';
+const TRANSICIONES = 'Solo `pendiente → en_proceso → completado`; cualquier otra → 422 `TRANSICION_INVALIDA`.';
 
 registerEndpoint({
   method: 'get',
@@ -51,11 +57,15 @@ registerEndpoint({
   path: '/api/laboratorio/ordenes',
   tag: TAG,
   summary: 'Listar órdenes',
-  description: 'Un `doctor` ve las de sus pacientes; un `paciente`, solo las propias.',
+  description:
+    'De la más reciente a la más antigua. Administración y recepción ven todas; un `doctor`, las de los pacientes ' +
+    'que atiende; un `paciente`, solo las propias.',
   roles: ['administrador', 'doctor', 'recepcionista', 'paciente'],
   ticket: 'HUNI-62',
+  estado: 'implementado',
   request: { query: listarOrdenesQuerySchema },
   response: { description: 'Página de órdenes', schema: paginado(OrdenLaboratorioSchema) },
+  errores: { 403: ['PERFIL_INCOMPLETO'] },
 });
 
 registerEndpoint({
@@ -63,11 +73,15 @@ registerEndpoint({
   path: '/api/laboratorio/ordenes/{id}',
   tag: TAG,
   summary: 'Detalle de una orden',
-  description: 'Acceso: médico tratante, el propio paciente, recepción y administración.',
+  description:
+    'Acceso: médico tratante, el propio paciente, recepción (procesa los exámenes) y administración. ' +
+    'Cualquier otro → 403 `ACCESO_DENEGADO`.',
   roles: ['administrador', 'doctor', 'recepcionista', 'paciente'],
   ticket: 'HUNI-62',
+  estado: 'implementado',
   request: { params: idParamSchema },
   response: { description: 'Orden', schema: OrdenLaboratorioSchema },
+  errores: { 403: ['PERFIL_INCOMPLETO'] },
 });
 
 registerEndpoint({
@@ -75,9 +89,10 @@ registerEndpoint({
   path: '/api/laboratorio/ordenes/{id}/examenes/{orden_examen_id}/estado',
   tag: TAG,
   summary: 'Iniciar examen (pendiente → en_proceso)',
-  description: `Cualquier otra transición → 422 \`TRANSICION_INVALIDA\`. ${REALTIME} ${ROLES_LAB}`,
+  description: `${TRANSICIONES} Guarda \`fecha_inicio\`. ${REALTIME} ${ROLES_LAB}`,
   roles: ['administrador', 'recepcionista'],
   ticket: 'HUNI-62',
+  estado: 'implementado',
   request: { params: ordenExamenParamsSchema, body: jsonBody(cambiarEstadoExamenBodySchema) },
   response: { description: 'Examen en proceso', schema: OrdenExamenSchema },
   errores: { 422: ['TRANSICION_INVALIDA'] },
@@ -89,16 +104,22 @@ registerEndpoint({
   tag: TAG,
   summary: 'Registrar resultado (en_proceso → completado)',
   description:
-    'Envía `multipart/form-data` con el valor y/o un PDF; el PDF se guarda en Supabase Storage. ' +
-    `Sin valor ni archivo → 422 \`RESULTADO_REQUERIDO\`. ${REALTIME} ${ROLES_LAB}`,
+    'Envía `multipart/form-data` con el valor y/o un PDF (campo `archivo`, máx. 10 MB); el PDF se guarda en el bucket ' +
+    'privado `resultados-laboratorio` de Supabase Storage. El examen debe estar `en_proceso`. ' +
+    `Sin valor ni archivo → 422 \`RESULTADO_REQUERIDO\`. Un resultado completado ya no se modifica. ${REALTIME} ${ROLES_LAB}`,
   roles: ['administrador', 'recepcionista'],
   ticket: 'HUNI-62',
+  estado: 'implementado',
   request: {
     params: ordenExamenParamsSchema,
     body: { required: true, content: { 'multipart/form-data': { schema: registrarResultadoBodySchema } } },
   },
   response: { description: 'Examen completado', schema: OrdenExamenSchema },
-  errores: { 422: ['TRANSICION_INVALIDA', 'RESULTADO_REQUERIDO'] },
+  errores: {
+    400: ['SOLICITUD_INVALIDA'],
+    403: ['PERFIL_INCOMPLETO'],
+    422: ['TRANSICION_INVALIDA', 'RESULTADO_REQUERIDO'],
+  },
 });
 
 registerEndpoint({
@@ -107,9 +128,12 @@ registerEndpoint({
   tag: TAG,
   summary: 'URL firmada del PDF de resultado',
   description:
-    'Devuelve una URL temporal para descargar el PDF. Acceso: médico tratante, el propio paciente y administración.',
+    'Devuelve una URL firmada de Supabase Storage que vence a los 10 minutos. Acceso: médico tratante, el propio ' +
+    'paciente y administración (recepción no descarga resultados). Sin PDF → 404.',
   roles: ['administrador', 'doctor', 'paciente'],
   ticket: 'HUNI-62',
+  estado: 'implementado',
   request: { params: ordenExamenParamsSchema },
   response: { description: 'URL de descarga', schema: ArchivoFirmadoSchema },
+  errores: { 403: ['PERFIL_INCOMPLETO'] },
 });
