@@ -29,6 +29,10 @@ export class Server {
   private configure(routes: Router, publicPath: string) {
     const app = this.app;
     app.disable('x-powered-by');
+    // En Dokploy la API va detrás de un solo proxy (Traefik, que termina TLS):
+    // así req.ip y req.protocol reflejan al cliente real. Si se agrega otro proxy
+    // delante (p. ej. Cloudflare), hay que subir este número.
+    app.set('trust proxy', 1);
 
     app.use(
       pinoHttp({

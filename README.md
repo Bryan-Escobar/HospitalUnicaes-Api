@@ -361,7 +361,13 @@ docker build -t hospitalunicaes-api .
 docker run --rm -p 3000:3000 --env-file .env hospitalunicaes-api
 ```
 
-Imagen multi-etapa sobre `node:20-alpine`, sin dependencias de desarrollo, con usuario sin privilegios y `HEALTHCHECK` contra `/health`. El `.dockerignore` excluye `.env` y artefactos locales.
+O con Compose: `docker compose up --build` (usa el mismo `.env`). `docker run --env-file` no quita las comillas de `.env`; si falla con _"SUPABASE_URL should be a valid URL"_, usa Compose o quita las comillas.
+
+Imagen multi-etapa sobre `node:20-alpine`, sin dependencias de desarrollo, con usuario sin privilegios, `HEALTHCHECK` contra `/health` y apagado ordenado ante `SIGTERM`. El `.dockerignore` excluye `.env` y artefactos locales. El job `docker-build` de CI construye la imagen y prueba el healthcheck y el apagado en cada PR.
+
+### Despliegue (HUNI-99)
+
+La API se despliega en un VPS con **Dokploy**, que construye este `Dockerfile` desde Git: una aplicación para `staging` y otra para `prod`. Configuración, variables de entorno, verificación post-deploy y rollback en [docs/DEPLOY_DOKPLOY.md](docs/DEPLOY_DOKPLOY.md). Orden obligatorio: primero `supabase db push`, después el redeploy.
 
 ## Dependencias Principales
 
