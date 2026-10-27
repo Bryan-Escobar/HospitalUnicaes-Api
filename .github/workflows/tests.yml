@@ -40,6 +40,54 @@ jobs:
       - name: Build
         run: npm run build
 
+  # Construye la imagen igual que Dokploy y comprueba que arranca, pasa el
+  # HEALTHCHECK y se apaga ordenadamente con SIGTERM. Las variables son falsas:
+  # /health responde 200 aunque la BD no exista (reporta database: down).
+  docker:
+    name: docker-build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Construir la imagen
+        run: docker build -t hospitalunicaes-api:ci .
+
+      - name: Arrancar el contenedor
+        run: |
+          docker run -d --name api -p 3000:3000 \
+            -e DATABASE_URL="postgresql://user:pass@127.0.0.1:5432/db" \
+            -e DIRECT_URL="postgresql://user:pass@127.0.0.1:5432/db" \
+            -e SUPABASE_URL="https://example.supabase.co" \
+            -e SUPABASE_SERVICE_ROLE_KEY="ci-fake-key" \
+            hospitalunicaes-api:ci
+
+      - name: Esperar el HEALTHCHECK
+        run: |
+          for i in $(seq 1 45); do
+            status=$(docker inspect --format='{{.State.Health.Status}}' api)
+            echo "intento $i: $status"
+            [ "$status" = "healthy" ] && exit 0
+            [ "$(docker inspect --format='{{.State.Running}}' api)" = "false" ] && break
+            sleep 2
+          done
+          docker logs api
+          exit 1
+
+      - name: GET /health
+        run: curl -fsS http://127.0.0.1:3000/health
+
+      - name: Apagado ordenado (docker stop debe tardar menos de 9 s)
+        run: |
+          start=$(date +%s)
+          docker stop api
+          elapsed=$(( $(date +%s) - start ))
+          echo "docker stop tardó ${elapsed}s"
+          docker logs api | tail -5
+          [ "$elapsed" -lt 9 ]
+          [ "$(docker inspect --format='{{.State.ExitCode}}' api)" = "0" ]
+
   # Migraciones desde cero + seed idempotente + tests pgTAP (supabase/tests)
   test-db:
     name: test-db
