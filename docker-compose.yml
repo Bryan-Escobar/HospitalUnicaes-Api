@@ -1,0 +1,22 @@
+# Levanta la imagen de producción en local, igual que la construye Dokploy.
+# La base de datos es la de Supabase indicada en .env (no hay Postgres local aquí;
+# para eso está `supabase start`).
+#
+#   docker compose up --build
+#   curl http://localhost:3000/health
+#
+# En el VPS no se usa este archivo: Dokploy construye el Dockerfile directamente
+# (ver docs/DEPLOY_DOKPLOY.md).
+
+services:
+  api:
+    build: .
+    image: hospitalunicaes-api:local
+    container_name: hospitalunicaes-api
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - '${PORT:-3000}:3000'
+    restart: unless-stopped

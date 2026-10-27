@@ -1,0 +1,51 @@
+# Contexto de build. Todo lo que no se excluya aquí se sube al daemon de Docker
+# en cada build (también en Dokploy), aunque el Dockerfile nunca lo copie.
+#
+# El Dockerfile solo hace COPY de: package*.json, prisma/, tsconfig.json, src/ y public/.
+
+# Dependencias: se reinstalan con `npm ci` dentro de la imagen. Las locales
+# además están compiladas para Windows.
+node_modules/
+
+# Artefactos de build y de pruebas: la imagen compila su propio dist/.
+dist/
+build/
+coverage/
+
+# Secretos. Ningún COPY los alcanza, pero no tienen por qué viajar al daemon.
+.env
+.env.*
+!.env.example
+*.pem
+
+# Cliente de Prisma: el build lo regenera para Linux (`npx prisma generate`).
+# Copiar el generado en Windows solo arriesga pisarlo.
+src/generated/
+
+# Historial y automatización: irrelevantes para el runtime.
+.git/
+.gitignore
+.gitattributes
+.github/
+.vscode/
+.claude/
+
+# Base de datos: las migraciones y el seed se aplican con Supabase CLI
+# (`supabase db push`), nunca desde el contenedor.
+supabase/
+
+# Documentación.
+docs/
+*.md
+
+# Tests y herramientas que solo corren en local o en CI.
+test/
+eslint.config.mjs
+.prettierrc.json
+.prettierignore
+jest.config.js
+codecov.yml
+.nvmrc
+Dockerfile
+.dockerignore
+docker-compose*.yml
