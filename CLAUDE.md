@@ -60,6 +60,8 @@ All routes are registered in `src/presentation/routes.ts` (the single aggregator
 
 **Logging** — use `logger` from `src/config/logger.ts` or `req.log` (pino), never `console.log` (ESLint warns). Never log private patient data (context.md §3.4).
 
+**Deploy (HUNI-99)** — Dokploy on a VPS builds the root `Dockerfile` from Git (one app per `staging`/`prod` branch); see `docs/DEPLOY_DOKPLOY.md`. Keep `CMD ["node", "dist/app.js"]` (no npm wrapper, so SIGTERM reaches the graceful shutdown in `src/app.ts`). CI job `docker-build` builds the image and checks healthcheck + `docker stop`. Migrations are still pushed by hand before redeploying.
+
 **Config** — env vars are read and validated only in `src/config/envs.ts` (env-var). Add new ones there and to `.env.example`.
 
 **DB schema** — PostgreSQL with `public` and `auth` schemas (multi-schema Prisma). Any `BigInt` id must be wrapped with `Number()` before returning it in a response.
