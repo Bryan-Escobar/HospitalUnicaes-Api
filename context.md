@@ -104,7 +104,8 @@ Disponible ⇄ En Mantenimiento
 
 - Solo se puede despachar si está **Disponible**. Dos solicitudes simultáneas no pueden despacharla dos veces (control de concurrencia).
 - Debe mantener una **bitácora** de las emergencias atendidas, consultable con **filtros** (fecha, tipo, estado, etc.).
-- "Tiempo real": los cambios de estado deben verse en las 3 plataformas sin recargar manualmente (WebSockets, Realtime de la BD, SSE o polling corto). **[POR DEFINIR]** mecanismo.
+- "Tiempo real": los cambios de estado se ven en las 3 plataformas sin recargar por **Supabase Realtime** (tablas `ambulancias` y `solicitudes_ambulancia`, con RLS). Quien la pide sin cuenta consulta su estado por código cada ~10 s (HUNI-70).
+- **Pedirla:** el paciente desde iOS (a su nombre, una abierta a la vez), recepción y doctores desde la app, y **cualquiera sin cuenta** con el botón "Solicitar ambulancia" del login, que solo exige la ubicación (GPS o dirección). Recepción verifica (devuelve la llamada si hay teléfono) y decide el despacho; si no logra verificar, se recomienda despachar (HUNI-70).
 
 ### 3.6 Inventario: lotes, activos y proveedores (cambio de alcance 2026-10-24)
 - **Medicamentos e insumos se controlan por lote.** Cada lote tiene número de lote, **fecha de caducidad** y cantidad. El stock de un ítem es la suma de sus lotes. Se entrega por unidades: una salida de 1 unidad descuenta 1 del lote elegido, nunca el lote completo.
@@ -175,7 +176,7 @@ Implicaciones para el código:
 | Tema | Opciones | Decisión |
 |---|---|---|
 | Framework HTTP en Node | Express / Fastify / NestJS | — |
-| Tiempo real (ambulancia, ocupación) | Socket.IO / WebSockets nativos / SSE / polling | — |
+| Tiempo real (ambulancia, ocupación) | Socket.IO / WebSockets nativos / SSE / polling | Supabase Realtime con RLS (HUNI-62, HUNI-66, HUNI-70) |
 | Validación de entrada | Zod / class-validator / otra | — |
 | UI de la web | Librería de componentes (MUI, shadcn/ui, Tailwind…) | — |
 | Cliente HTTP Android | Retrofit / Ktor Client | — |
@@ -256,7 +257,7 @@ Leyenda: **C** crear · **R** leer · **U** actualizar · **D** eliminar · *(pr
 | Inventario / recursos | CRUD | R | R | — | — |
 | Inventario: entradas, salidas y activos | CRUD (Web) | — | — | — | — |
 | Proveedores | CRUD | — | — | — | — |
-| Ambulancia: estado | R, U | R, solicitar | R, solicitar / despachar | solicitar **[POR DEFINIR]** | — |
+| Ambulancia: estado | R, U (mantenimiento) | R, solicitar | R, solicitar / despachar / cerrar / cancelar | R, solicitar (propio) | solicitar (botón del login, solo ubicación) |
 | Ambulancia: bitácora | R (filtros) | R | R | — | — |
 | Avisos generales | CRUD | R | R | R | R |
 | Métricas / dashboard | R | — | — | — | — |
@@ -351,6 +352,7 @@ Leyenda: **C** crear · **R** leer · **U** actualizar · **D** eliminar · *(pr
 | 2026-10-26 | Consultas e historial clínico (HUNI-57): cualquier doctor abre una consulta a un paciente activo (también de emergencia, sin cita) y desde ese momento es su médico tratante; si atiende una cita, debe ser suya, del mismo paciente y estar programada o confirmada. Solo el doctor que abrió la consulta le agrega diagnósticos, recetas y exámenes, la edita y la cierra; cerrada, nada cambia (la BD lo impide también en `receta_detalles` y `orden_examenes`). Cada diagnóstico, receta y orden guarda `registrado_por` y su fecha. Leen el historial solo el médico tratante, el propio paciente y la administración (solo lectura); recepción no ve información clínica. La receta no descuenta stock. `POST /api/laboratorio/ordenes` y `GET /api/laboratorio/examenes` se adelantan de HUNI-62 | Jimmy |
 | 2026-10-25 | Turnos y citas directo desde Supabase (HUNI-51): RLS en `turnos_personal` y `citas`, vistas `v_turnos`/`v_citas` y RPC `crear_cita()`, `doctores_disponibles()` y `reprogramar_cita()`. Las citas las crean **solo administrador y recepcionista** (el paciente las pide en recepción; no hay INSERT directo). El doctor ve solo sus citas (así se entiende "su área") y solo marca confirmada/atendida/no_asistio; el paciente ve las suyas y solo las cancela. La cita debe caer completa dentro de los turnos del doctor (hora de El Salvador). Si un doctor no puede atender, recepción busca reemplazo con `doctores_disponibles()` y mueve la cita con `reprogramar_cita()`. Errores legibles `TURNO_SOLAPADO`, `CITA_DUPLICADA`, `CITA_FUERA_DE_TURNO` con SQLSTATE `PTxxx` para que PostgREST responda con el HTTP del catálogo | Jimmy |
 | 2026-10-25 | CRUD de pacientes y personal (HUNI-45): "médico tratante" = el doctor tiene una cita no cancelada, una consulta o una hospitalización con el paciente (solo así lo lista o ve). El paciente ve y edita solo su ficha. Desactivar un paciente o empleado con cuenta también desactiva su cuenta (403 `CUENTA_INACTIVA`) y `PATCH activo: true` la reactiva. El administrador no puede desactivarse ni quitarse su rol (422). El dashboard se sirve desde la vista `v_dashboard_summary` | Jimmy |
+| 2026-10-28 | Ambulancia (HUNI-70): despachar, pasar a en curso, cerrar y cancelar son funciones de Postgres que bloquean la fila de la única ambulancia (dos despachos simultáneos → solo uno gana, `AMBULANCIA_NO_DISPONIBLE`; probado con dos conexiones reales en pgTAP). Solicitud: `pendiente → despachada → en_curso → finalizada`, o `cancelada`. Despacha, marca en curso y cierra **recepción**; el **administrador** pone y quita el mantenimiento (desde `en_servicio` → 422 `AMBULANCIA_EN_SERVICIO`). Se cancela una pendiente (recepción, administración o el propio paciente) y también una ya despachada (falsa alarma) por recepción o administración con motivo: la ambulancia vuelve a disponible. **Tipo de emergencia** como enum (`accidente`, `cardiaca`, `respiratoria`, `neurologica`, `obstetrica`, `intoxicacion`, `traslado`, `otra`) además de la prioridad. Toda solicitud lleva dirección o coordenadas GPS. **Botón público** en el login, sin cuenta: solo la ubicación; devuelve un código de seguimiento con el que se ve el estado, se agregan teléfono/nombre/descripción después o se cancela; límite de 3 por IP cada 15 min y 5 públicas pendientes (429 `LIMITE_SOLICITUDES`). Recepción completa los datos que falten con `PATCH`. Bitácora: cada cambio de estado con la emergencia, la descripción y quién lo hizo; la ven administración, recepción y doctores, con filtros por fecha, estado, prioridad y tipo | Jimmy |
 
 ## 12. Glosario
 - **VIP:** habitación individual de la 3ª planta.
