@@ -109,6 +109,7 @@ registerEndpoint({
   description: 'Doctor, Enfermero/a, Alergista, etc. Es editable: el PDF dice "entre otros" (HUNI-34).',
   roles: [...ROLES],
   ticket: 'HUNI-46',
+  estado: 'implementado',
   response: { description: 'Tipos de personal', schema: z.array(TipoPersonalSchema) },
 });
 
