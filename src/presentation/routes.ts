@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { AmbulanciaPublicaRoutes, AmbulanciaRoutes } from './Ambulancia/routes';
 import { AuthRoutes } from './Auth/routes';
 import { ConsultasRoutes } from './Consultas/routes';
 import { DashboardRoutes } from './Dashboard/routes';
@@ -27,6 +28,8 @@ export class AppRoutes {
     router.use('/api/habitaciones', HabitacionesRoutes.routes);
     router.use('/api/camas', CamasRoutes.routes);
     router.use('/api/hospitalizaciones', HospitalizacionesRoutes.routes);
+    router.use('/api/ambulancia', AmbulanciaRoutes.routes);
+    router.use('/api/publico/ambulancia', AmbulanciaPublicaRoutes.routes);
 
     return router;
   }
