@@ -6,7 +6,7 @@ import { CamasRoutes, HabitacionesRoutes, HospitalizacionesRoutes } from './Habi
 import { HealthRoutes } from './Health/routes';
 import { LaboratorioRoutes } from './Laboratorio/routes';
 import { PacientesRoutes } from './Pacientes/routes';
-import { EspecialidadesRoutes, PersonalRoutes } from './Personal/routes';
+import { EspecialidadesRoutes, PersonalRoutes, TiposPersonalRoutes } from './Personal/routes';
 
 export class AppRoutes {
   static get routes(): Router {
@@ -20,6 +20,7 @@ export class AppRoutes {
     router.use('/api/pacientes', PacientesRoutes.routes);
     router.use('/api/personal', PersonalRoutes.routes);
     router.use('/api/especialidades', EspecialidadesRoutes.routes);
+    router.use('/api/tipos-personal', TiposPersonalRoutes.routes);
     router.use('/api/dashboard', DashboardRoutes.routes);
     router.use('/api/consultas', ConsultasRoutes.routes);
     router.use('/api/laboratorio', LaboratorioRoutes.routes);
