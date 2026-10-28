@@ -71,6 +71,14 @@ export const ERROR_CODES = {
     status: 422,
     descripcion: 'No se puede pasar a mantenimiento sin cerrar antes el servicio en curso.',
   },
+  SOLICITUD_CERRADA: {
+    status: 409,
+    descripcion: 'La solicitud de ambulancia ya está finalizada o cancelada y no se modifica.',
+  },
+  LIMITE_SOLICITUDES: {
+    status: 429,
+    descripcion: 'Ya hay una solicitud de ambulancia en espera desde aquí; espera a que recepción la atienda.',
+  },
 
   // Inventario: lotes, activos y proveedores (HUNI-97)
   TIPO_CONTROL_INVALIDO: {
@@ -102,5 +110,6 @@ export const DEFAULT_CODE_BY_STATUS: Record<number, ErrorCode> = {
   404: 'NO_ENCONTRADO',
   409: 'CONFLICTO',
   422: 'REGLA_DE_NEGOCIO',
+  429: 'LIMITE_SOLICITUDES',
   500: 'ERROR_INTERNO',
 };
