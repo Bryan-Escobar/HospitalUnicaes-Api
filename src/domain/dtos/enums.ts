@@ -35,7 +35,19 @@ export const EstadoAmbulanciaSchema = z
 
 export const EstadoSolicitudSchema = z
   .enum(['pendiente', 'despachada', 'en_curso', 'finalizada', 'cancelada'])
-  .openapi('EstadoSolicitudAmbulancia');
+  .openapi('EstadoSolicitudAmbulancia', {
+    description:
+      'pendiente → despachada → en_curso → finalizada. Se cancela pendiente (o despachada/en curso si la cancela ' +
+      'recepción, administración o el solicitante público).',
+  });
+
+export const TipoEmergenciaSchema = z
+  .enum(['accidente', 'cardiaca', 'respiratoria', 'neurologica', 'obstetrica', 'intoxicacion', 'traslado', 'otra'])
+  .openapi('TipoEmergencia');
+
+export const CanalSolicitudSchema = z.enum(['app', 'publico']).openapi('CanalSolicitudAmbulancia', {
+  description: '`app`: con sesión. `publico`: botón del login, sin cuenta (se sigue con el código de seguimiento).',
+});
 
 export const EstadoCitaSchema = z
   .enum(['programada', 'confirmada', 'atendida', 'cancelada', 'no_asistio'])

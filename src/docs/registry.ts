@@ -83,7 +83,7 @@ export const paginado = <T extends z.ZodType>(item: T) =>
 
 // ---------- Helper para documentar endpoints ----------
 
-type HttpError = 400 | 401 | 403 | 404 | 409 | 422;
+type HttpError = 400 | 401 | 403 | 404 | 409 | 422 | 429;
 
 const HTTP_TEXT: Record<HttpError, string> = {
   400: 'Petición inválida',
@@ -92,6 +92,7 @@ const HTTP_TEXT: Record<HttpError, string> = {
   404: 'No encontrado',
   409: 'Conflicto con el estado actual',
   422: 'Regla de negocio no cumplida',
+  429: 'Demasiadas solicitudes',
 };
 
 export interface EndpointDoc {
