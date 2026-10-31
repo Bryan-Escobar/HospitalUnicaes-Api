@@ -4,9 +4,36 @@ on:
   pull_request:
     branches: ['development', 'staging', 'prod']
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
+  # Filtro de rutas: si el PR solo toca documentación, los demás jobs quedan
+  # "skipped", que cuenta como aprobado en los checks requeridos. Con
+  # on.pull_request.paths el workflow ni arrancaría y el check quedaría pendiente.
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+
+    steps:
+      - name: Detectar cambios de código
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          predicate-quantifier: 'every'
+          filters: |
+            code:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+
   test:
     name: test-api
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -45,6 +72,8 @@ jobs:
   # /health responde 200 aunque la BD no exista (reporta database: down).
   docker:
     name: docker-build
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -91,6 +120,8 @@ jobs:
   # Migraciones desde cero + seed idempotente + tests pgTAP (supabase/tests)
   test-db:
     name: test-db
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
 
     steps:

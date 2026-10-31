@@ -39,3 +39,12 @@ export class EspecialidadesRoutes {
     return router;
   }
 }
+
+// Catálogo de tipos de personal (HUNI-46). Por ahora solo lectura: alta y edición del catálogo siguen pendientes.
+export class TiposPersonalRoutes {
+  static get routes(): Router {
+    const router = Router();
+    router.get('/', authenticate, requireRole(...ROLES), controller().listarTiposPersonal);
+    return router;
+  }
+}

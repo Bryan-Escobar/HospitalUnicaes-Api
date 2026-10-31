@@ -101,6 +101,13 @@ export class PersonalRepository {
     });
   }
 
+  async listarTiposPersonal() {
+    return prisma.tipos_personal.findMany({
+      select: { id: true, nombre: true, rol_sugerido: true, es_medico: true, activo: true },
+      orderBy: { nombre: 'asc' },
+    });
+  }
+
   /** Crea el empleado y, si trae cuenta, fija su rol y nombre en `perfiles`, en una sola transacción. */
   async crear(datos: DatosPersonal, cuenta?: CuentaPersonal): Promise<PersonalCompleto> {
     const { fecha_contratacion, ...resto } = datos;
