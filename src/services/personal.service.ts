@@ -96,6 +96,10 @@ export class PersonalService {
     return this.personalRepository.listarEspecialidades();
   }
 
+  async listarTiposPersonal() {
+    return this.personalRepository.listarTiposPersonal();
+  }
+
   private async buscar(id: string): Promise<PersonalCompleto> {
     const personal = await this.personalRepository.findById(id);
     if (!personal) throw CustomError.notFound('El empleado no existe');

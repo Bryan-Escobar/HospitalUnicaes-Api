@@ -460,4 +460,33 @@ describe('Personal API', () => {
       expect(res.body.data).toEqual([{ id: ESPECIALIDAD_ID, nombre: 'Pediatría', descripcion: null }]);
     });
   });
+
+  describe('GET /api/tipos-personal', () => {
+    const tipos = [
+      { id: TIPO_DOCTOR, nombre: 'Doctor', rol_sugerido: 'doctor' as const, es_medico: true, activo: true },
+      {
+        id: TIPO_ENFERMERIA,
+        nombre: 'Enfermero/a',
+        rol_sugerido: 'recepcionista' as const,
+        es_medico: false,
+        activo: true,
+      },
+    ];
+
+    test('401 sin token', async () => {
+      const res = await request(app).get('/api/tipos-personal');
+
+      expect(res.status).toBe(401);
+    });
+
+    test.each(['administrador', 'doctor', 'recepcionista', 'paciente'] as const)('%s ve el catálogo', async (rol) => {
+      const headers = await sesionComo(rol);
+      jest.spyOn(PersonalRepository.prototype, 'listarTiposPersonal').mockResolvedValue(tipos);
+
+      const res = await request(app).get('/api/tipos-personal').set(headers);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual(tipos);
+    });
+  });
 });

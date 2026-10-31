@@ -43,6 +43,10 @@ export class PersonalController {
     await this.responder(res, 200, 'Especialidades', () => this.personalService.listarEspecialidades());
   };
 
+  public listarTiposPersonal = async (_req: Request, res: Response) => {
+    await this.responder(res, 200, 'Tipos de personal', () => this.personalService.listarTiposPersonal());
+  };
+
   private async responder<T>(res: Response, statusCode: 200 | 201, message: string, accion: () => Promise<T>) {
     try {
       const data = await accion();
