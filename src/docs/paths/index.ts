@@ -8,3 +8,4 @@ import './laboratorio.docs';
 import './habitaciones.docs';
 import './ambulancia.docs';
 import './dashboard.docs';
+import './avisos.docs';
