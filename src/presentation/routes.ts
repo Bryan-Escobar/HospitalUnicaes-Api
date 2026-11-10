@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AmbulanciaPublicaRoutes, AmbulanciaRoutes } from './Ambulancia/routes';
 import { AuthRoutes } from './Auth/routes';
+import { AvisosRoutes } from './Avisos/routes';
 import { ConsultasRoutes } from './Consultas/routes';
 import { DashboardRoutes } from './Dashboard/routes';
 import { CamasRoutes, HabitacionesRoutes, HospitalizacionesRoutes } from './Habitaciones/routes';
@@ -8,6 +9,7 @@ import { HealthRoutes } from './Health/routes';
 import { LaboratorioRoutes } from './Laboratorio/routes';
 import { PacientesRoutes } from './Pacientes/routes';
 import { EspecialidadesRoutes, PersonalRoutes, TiposPersonalRoutes } from './Personal/routes';
+import { PublicoRoutes } from './Publico/routes';
 
 export class AppRoutes {
   static get routes(): Router {
@@ -29,7 +31,11 @@ export class AppRoutes {
     router.use('/api/camas', CamasRoutes.routes);
     router.use('/api/hospitalizaciones', HospitalizacionesRoutes.routes);
     router.use('/api/ambulancia', AmbulanciaRoutes.routes);
+    router.use('/api/avisos', AvisosRoutes.routes);
+
+    // Sin sesión (context.md §3.4)
     router.use('/api/publico/ambulancia', AmbulanciaPublicaRoutes.routes);
+    router.use('/api/publico', PublicoRoutes.routes);
 
     return router;
   }
