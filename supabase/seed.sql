@@ -606,15 +606,21 @@ end
 $seed_historial_camas$;
 
 -- -----------------------------------------------------------------------------
--- Avisos generales (2 públicos y 1 interno)
+-- Avisos generales (HUNI-74): vigentes (3 públicos y 2 internos), 1 programado y 1 vencido.
+--   GET /api/publico/estado muestra solo los públicos vigentes; el personal ve también los internos;
+--   el administrador filtra programados y vencidos en GET /api/avisos?vigencia=...
 -- -----------------------------------------------------------------------------
-insert into public.avisos (titulo, contenido, autor_id, es_publico, fecha_expiracion)
-select a.titulo, a.contenido, '11111111-1111-4111-8111-000000000001', a.publico, now() + a.vigencia
+insert into public.avisos (titulo, contenido, autor_id, es_publico, fecha_publicacion, fecha_expiracion)
+select a.titulo, a.contenido, '11111111-1111-4111-8111-000000000001', a.publico, now() + a.desde, now() + a.hasta
 from (values
-  ('Jornada de vacunación', 'Este sábado de 8:00 a 12:00 en el vestíbulo principal. Trae tu tarjeta de vacunación.', true, interval '30 days'),
-  ('Horario de visitas', 'Hospitalización: de 10:00 a 12:00 y de 16:00 a 18:00. Máximo 2 visitantes por paciente.', true, interval '365 days'),
-  ('Capacitación interna', 'Capacitación sobre el nuevo sistema de citas el viernes a las 14:00 en el auditorio.', false, interval '15 days')
-) as a (titulo, contenido, publico, vigencia)
+  ('Jornada de vacunación', 'Este sábado de 8:00 a 12:00 en el vestíbulo principal. Trae tu tarjeta de vacunación.', true, interval '0', interval '30 days'),
+  ('Horario de visitas', 'Hospitalización: de 10:00 a 12:00 y de 16:00 a 18:00. Máximo 2 visitantes por paciente.', true, interval '0', interval '365 days'),
+  ('Estacionamiento de emergencias', 'El acceso de la calle poniente queda reservado para ambulancias. Visitantes: usen el parqueo principal.', true, interval '-2 days', null),
+  ('Capacitación interna', 'Capacitación sobre el nuevo sistema de citas el viernes a las 14:00 en el auditorio.', false, interval '0', interval '15 days'),
+  ('Simulacro de evacuación', 'Simulacro el jueves a las 10:00. Jefaturas: revisen las rutas de su área con el personal.', false, interval '-1 day', interval '7 days'),
+  ('Feria de salud', 'Feria de salud preventiva en el vestíbulo: toma de presión, glucosa y orientación nutricional.', true, interval '10 days', interval '12 days'),
+  ('Mantenimiento de ascensores', 'Los ascensores del ala norte estuvieron en mantenimiento. Gracias por su comprensión.', true, interval '-20 days', interval '-5 days')
+) as a (titulo, contenido, publico, desde, hasta)
 where exists (select 1 from public.perfiles pf where pf.id = '11111111-1111-4111-8111-000000000001')
   and not exists (select 1 from public.avisos x where x.titulo = a.titulo);
 

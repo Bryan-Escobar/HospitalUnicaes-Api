@@ -52,6 +52,7 @@ const TAGS = [
   { name: 'Habitaciones', description: '11 habitaciones, 17 camas, ingresos, altas y traslados (HUNI-66)' },
   { name: 'Ambulancia', description: 'La única ambulancia: solicitudes, despacho y bitácora (HUNI-70)' },
   { name: 'Dashboard', description: 'Panel administrativo (HUNI-45)' },
+  { name: 'Avisos', description: 'Avisos generales públicos e internos (HUNI-74)' },
   { name: 'Público', description: 'Información pública, sin sesión (HUNI-74)' },
   { name: 'Health', description: 'Infraestructura' },
 ];

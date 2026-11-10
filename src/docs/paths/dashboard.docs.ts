@@ -20,9 +20,12 @@ registerEndpoint({
   tag: 'Público',
   summary: 'Estado público del hospital',
   description:
-    'Sin token. Ocupación agregada (solo cantidades), médicos de turno y avisos vigentes. ' +
-    'Nunca incluye nombres de pacientes ni la habitación de nadie (context.md §3.4).',
+    'Sin token. Ocupación agregada (solo cantidades), médicos de turno en este momento (tipos de personal ' +
+    'médicos, hora de El Salvador) y avisos públicos vigentes. ' +
+    'Nunca incluye nombres de pacientes ni la habitación de nadie (context.md §3.4). ' +
+    'Los clientes con Supabase pueden obtener lo mismo con la RPC `estado_publico()`.',
   roles: 'publico',
   ticket: 'HUNI-74',
+  estado: 'implementado',
   response: { description: 'Estado público', schema: EstadoPublicoSchema },
 });
