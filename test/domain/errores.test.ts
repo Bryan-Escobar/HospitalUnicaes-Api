@@ -73,6 +73,8 @@ describe('Errores estándar', () => {
   });
 
   test('todos los códigos del catálogo tienen un status de error válido', () => {
-    Object.values(ERROR_CODES).forEach(({ status }) => expect([400, 401, 403, 404, 409, 422, 500]).toContain(status));
+    Object.values(ERROR_CODES).forEach(({ status }) =>
+      expect([400, 401, 403, 404, 409, 422, 429, 500]).toContain(status),
+    );
   });
 });
