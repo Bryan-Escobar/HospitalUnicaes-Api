@@ -96,7 +96,8 @@ Es **idempotente**: se puede correr las veces que sea sin duplicar datos. Carga:
   (incluye un turno nocturno 19:00–07:00) y citas pasadas (atendidas, canceladas, no_asistio) y futuras
   (programadas y confirmadas), siempre dentro del turno del doctor.
 - Una consulta cerrada con diagnóstico, receta y laboratorio; una orden pendiente; 2 hospitalizaciones activas;
-  avisos (públicos e internos) y 2 servicios de ambulancia finalizados.
+  7 avisos (HUNI-74: 3 públicos y 2 internos vigentes, 1 programado y 1 vencido) y 2 servicios de ambulancia
+  finalizados.
 
 Los datos de prueba se agregan en el seed, no en cada cliente: si a tu pantalla le falta un caso, agrégalo aquí.
 
