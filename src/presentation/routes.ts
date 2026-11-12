@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { ActivosRoutes } from './Activos/routes';
 import { AmbulanciaPublicaRoutes, AmbulanciaRoutes } from './Ambulancia/routes';
 import { AuthRoutes } from './Auth/routes';
 import { AvisosRoutes } from './Avisos/routes';
@@ -6,9 +7,11 @@ import { ConsultasRoutes } from './Consultas/routes';
 import { DashboardRoutes } from './Dashboard/routes';
 import { CamasRoutes, HabitacionesRoutes, HospitalizacionesRoutes } from './Habitaciones/routes';
 import { HealthRoutes } from './Health/routes';
+import { InventarioRoutes } from './Inventario/routes';
 import { LaboratorioRoutes } from './Laboratorio/routes';
 import { PacientesRoutes } from './Pacientes/routes';
 import { EspecialidadesRoutes, PersonalRoutes, TiposPersonalRoutes } from './Personal/routes';
+import { ProveedoresRoutes } from './Proveedores/routes';
 import { PublicoRoutes } from './Publico/routes';
 
 export class AppRoutes {
@@ -32,6 +35,9 @@ export class AppRoutes {
     router.use('/api/hospitalizaciones', HospitalizacionesRoutes.routes);
     router.use('/api/ambulancia', AmbulanciaRoutes.routes);
     router.use('/api/avisos', AvisosRoutes.routes);
+    router.use('/api/inventario', InventarioRoutes.routes);
+    router.use('/api/proveedores', ProveedoresRoutes.routes);
+    router.use('/api/activos', ActivosRoutes.routes);
 
     // Sin sesión (context.md §3.4)
     router.use('/api/publico/ambulancia', AmbulanciaPublicaRoutes.routes);
