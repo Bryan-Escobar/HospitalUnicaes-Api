@@ -39,6 +39,9 @@ describe('Contrato OpenAPI v1', () => {
     ['Ambulancia', 'post', '/api/ambulancia/solicitudes/{id}/despachar'],
     ['Dashboard', 'get', '/api/dashboard/resumen'],
     ['Público', 'get', '/api/publico/estado'],
+    ['Inventario', 'post', '/api/inventario/{id}/entradas'],
+    ['Proveedores', 'get', '/api/proveedores'],
+    ['Activos', 'patch', '/api/activos/{id}'],
   ])('incluye el módulo %s (%s %s)', (tag, method, path) => {
     const op = operations.find((o) => o.method === method && o.path === path);
     expect(op).toBeDefined();

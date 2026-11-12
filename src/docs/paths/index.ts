@@ -9,3 +9,6 @@ import './habitaciones.docs';
 import './ambulancia.docs';
 import './dashboard.docs';
 import './avisos.docs';
+import './inventario.docs';
+import './proveedores.docs';
+import './activos.docs';
