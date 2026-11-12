@@ -99,7 +99,8 @@ export const ERROR_CODES = {
   // HUNI-98
   ITEM_CON_EXISTENCIAS: {
     status: 422,
-    descripcion: 'El ítem todavía tiene existencias: descarta sus lotes o da de baja sus equipos antes de desactivarlo.',
+    descripcion:
+      'El ítem todavía tiene existencias: descarta sus lotes o da de baja sus equipos antes de desactivarlo.',
   },
   ITEM_INACTIVO: {
     status: 422,
