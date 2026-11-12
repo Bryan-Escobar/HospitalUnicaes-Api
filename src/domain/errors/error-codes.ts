@@ -96,6 +96,16 @@ export const ERROR_CODES = {
   STOCK_INSUFICIENTE: { status: 409, descripcion: 'El lote no tiene unidades suficientes para la salida.' },
   PROVEEDOR_INVALIDO: { status: 422, descripcion: 'La entrada o el activo necesita un proveedor activo.' },
   ACTIVO_DADO_DE_BAJA: { status: 409, descripcion: 'El activo está dado de baja y ya no se puede modificar.' },
+  // HUNI-98
+  ITEM_CON_EXISTENCIAS: {
+    status: 422,
+    descripcion:
+      'El ítem todavía tiene existencias: descarta sus lotes o da de baja sus equipos antes de desactivarlo.',
+  },
+  ITEM_INACTIVO: {
+    status: 422,
+    descripcion: 'El ítem está desactivado: reactívalo antes de registrar movimientos o equipos.',
+  },
 } as const satisfies Record<string, { status: number; descripcion: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

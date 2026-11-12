@@ -246,6 +246,58 @@ join public.proveedores p on p.nit = '0614-020290-102-1'
 join public.perfiles pf on pf.id = '11111111-1111-4111-8111-000000000001'
 on conflict (item_id, numero_serie) do nothing;
 
+-- HUNI-98: casos para la Web (sin tocar MED-0001 ni EQP-0001, que usa 03_inventario.test.sql):
+--   proveedor desactivado, ítem desactivado, lote vencido con unidades (alerta 'vencido', solo admite un
+--   ajuste), salidas y ajustes en el historial y un equipo dado de baja.
+insert into public.proveedores (nombre, nit, nrc, contacto, telefono, email, direccion, activo) values
+  ('Insumos Antiguos Demo, S.A. de C.V.', '0210-040490-104-3', '100004-4', 'Raúl Paz', '+503 2400-0004',
+   'info@insumos-antiguos-demo.test', 'Santa Ana', false)
+on conflict (nit) do nothing;
+
+insert into public.inventario_items (codigo, nombre, categoria, unidad_medida, stock_minimo, ubicacion, activo) values
+  ('INS-0003', 'Gasa estéril 10 x 10 cm (descontinuada)', 'insumo', 'paquete', 0, 'Bodega central', false)
+on conflict (codigo) do nothing;
+
+do $seed_inventario_huni98$
+declare
+  v_admin     uuid := '11111111-1111-4111-8111-000000000001';
+  v_proveedor uuid := (select id from public.proveedores where nit = '0614-010190-101-0');
+  v_amx       uuid := (select id from public.inventario_items where codigo = 'MED-0002');
+  v_jer       uuid := (select id from public.inventario_items where codigo = 'INS-0001');
+begin
+  if not exists (select 1 from public.perfiles where id = v_admin) then
+    return;
+  end if;
+
+  -- Lote que ya venció: entra con caducidad futura y luego se mueve la fecha (una entrada vencida no se acepta)
+  if not exists (select 1 from public.lotes_inventario where item_id = v_amx and numero_lote = 'AMX-2301') then
+    perform public.registrar_entrada_lote(v_amx, 'AMX-2301', public.hoy_local() + 5, 40, v_proveedor, v_admin,
+                                          'Carga inicial (seed)');
+    update public.lotes_inventario set fecha_caducidad = public.hoy_local() - 3
+    where item_id = v_amx and numero_lote = 'AMX-2301';
+  end if;
+
+  insert into public.movimientos_inventario (item_id, lote_id, tipo, cantidad, motivo, registrado_por)
+  select m.item_id, l.id, m.tipo::public.tipo_movimiento, m.cantidad, m.motivo, v_admin
+  from (values
+    (v_amx, 'AMX-2403', 'salida', 10, 'Entrega a Emergencia (seed)'),
+    (v_jer, 'JER-2404', 'salida', 60, 'Entrega a Hospitalización (seed)'),
+    (v_jer, 'JER-2404', 'ajuste', -2, 'Conteo físico: 2 unidades dañadas (seed)')
+  ) as m (item_id, lote, tipo, cantidad, motivo)
+  join public.lotes_inventario l on l.item_id = m.item_id and l.numero_lote = m.lote
+  where not exists (select 1 from public.movimientos_inventario x where x.lote_id = l.id and x.motivo = m.motivo);
+end
+$seed_inventario_huni98$;
+
+insert into public.activos (item_id, numero_serie, proveedor_id, estado, ubicacion, notas, registrado_por)
+select i.id, 'BIF-20002', p.id, 'dado_de_baja', 'Bodega de bajas', 'Fuera de servicio: tarjeta principal dañada',
+       '11111111-1111-4111-8111-000000000001'
+from public.inventario_items i
+join public.proveedores p on p.nit = '0614-020290-102-1'
+where i.codigo = 'EQP-0002'
+  and exists (select 1 from public.perfiles pf where pf.id = '11111111-1111-4111-8111-000000000001')
+on conflict (item_id, numero_serie) do nothing;
+
 -- -----------------------------------------------------------------------------
 -- Turnos (HUNI-51): semana tipo, de hoy - 7 a hoy + 14. Entre los médicos cubren las 24 horas:
 --   Roberto (interna)     lun–vie 07:00–15:00 · Gabriela (pediatría) lun–vie 13:00–21:00, sáb–dom 07:00–19:00

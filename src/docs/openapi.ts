@@ -39,7 +39,6 @@ Error (\`ApiError\`): \`{ statusCode, success: false, code, message, errors? }\`
 ## Qué no pasa por esta API
 - **Login, registro de sesión y recuperación de contraseña:** SDK de Supabase Auth.
 - **Turnos del personal y citas:** directo a Supabase con RLS (HUNI-51).
-- **Inventario:** directo a Supabase con RLS (HUNI-69).
 - **Tiempo real** (ambulancia, camas, laboratorio): suscripción a Supabase Realtime.
 `.trim();
 
@@ -52,6 +51,9 @@ const TAGS = [
   { name: 'Habitaciones', description: '11 habitaciones, 17 camas, ingresos, altas y traslados (HUNI-66)' },
   { name: 'Ambulancia', description: 'La única ambulancia: solicitudes, despacho y bitácora (HUNI-70)' },
   { name: 'Dashboard', description: 'Panel administrativo (HUNI-45)' },
+  { name: 'Inventario', description: 'Ítems, lotes (FEFO), movimientos y alertas de caducidad (HUNI-98)' },
+  { name: 'Proveedores', description: 'Proveedores desactivables de lotes y equipos (HUNI-98)' },
+  { name: 'Activos', description: 'Equipos por número de serie (HUNI-98)' },
   { name: 'Avisos', description: 'Avisos generales públicos e internos (HUNI-74)' },
   { name: 'Público', description: 'Información pública, sin sesión (HUNI-74)' },
   { name: 'Health', description: 'Infraestructura' },

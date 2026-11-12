@@ -98,6 +98,9 @@ Es **idempotente**: se puede correr las veces que sea sin duplicar datos. Carga:
 - Una consulta cerrada con diagnóstico, receta y laboratorio; una orden pendiente; 2 hospitalizaciones activas;
   7 avisos (HUNI-74: 3 públicos y 2 internos vigentes, 1 programado y 1 vencido) y 2 servicios de ambulancia
   finalizados.
+- **Inventario** (HUNI-97, HUNI-98): 3 proveedores (1 desactivado), 7 ítems (1 desactivado), lotes que vencen
+  en 10 y 25 días y uno ya vencido con unidades, salidas y ajustes en el historial, y 4 equipos (uno en uso, uno
+  disponible, uno en mantenimiento y uno dado de baja).
 
 Los datos de prueba se agregan en el seed, no en cada cliente: si a tu pantalla le falta un caso, agrégalo aquí.
 
