@@ -9,7 +9,7 @@ import {
 } from '../../domain/validators/laboratorio.validator';
 import { LaboratorioService } from '../../services/laboratorio.service';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
-import { subirPdfOpcional } from '../middlewares/upload.middleware';
+import { subirArchivoResultadoOpcional } from '../middlewares/upload.middleware';
 import { validateBody, validateParams, validateQuery } from '../middlewares/validation.middleware';
 import { LaboratorioController } from './laboratorio.controller';
 
@@ -66,7 +66,7 @@ export class LaboratorioRoutes {
       authenticate,
       procesan,
       examen,
-      subirPdfOpcional,
+      subirArchivoResultadoOpcional,
       validateBody(registrarResultadoBodySchema),
       controller.registrarResultado,
     );

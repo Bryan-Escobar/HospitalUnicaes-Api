@@ -89,7 +89,9 @@ registerEndpoint({
   path: '/api/laboratorio/ordenes/{id}/examenes/{orden_examen_id}/estado',
   tag: TAG,
   summary: 'Iniciar examen (pendiente → en_proceso)',
-  description: `${TRANSICIONES} Guarda \`fecha_inicio\`. ${REALTIME} ${ROLES_LAB}`,
+  description:
+    `${TRANSICIONES} Guarda \`fecha_inicio\`. Si dos usuarios lo inician a la vez, el segundo recibe 422. ` +
+    `${REALTIME} ${ROLES_LAB}`,
   roles: ['administrador', 'recepcionista'],
   ticket: 'HUNI-62',
   estado: 'implementado',
@@ -104,8 +106,10 @@ registerEndpoint({
   tag: TAG,
   summary: 'Registrar resultado (en_proceso → completado)',
   description:
-    'Envía `multipart/form-data` con el valor y/o un PDF (campo `archivo`, máx. 10 MB); el PDF se guarda en el bucket ' +
-    'privado `resultados-laboratorio` de Supabase Storage. El examen debe estar `en_proceso`. ' +
+    'Envía `multipart/form-data` con el valor y/o un archivo (campo `archivo`: PDF o imagen JPG, PNG o WebP, máx. ' +
+    '10 MB; el tipo se comprueba por su contenido). Se guarda en el bucket privado `resultados-laboratorio` de ' +
+    'Supabase Storage. El examen debe estar `en_proceso`; si otro usuario registró el resultado a la vez → 422 ' +
+    '`TRANSICION_INVALIDA`. ' +
     `Sin valor ni archivo → 422 \`RESULTADO_REQUERIDO\`. Un resultado completado ya no se modifica. ${REALTIME} ${ROLES_LAB}`,
   roles: ['administrador', 'recepcionista'],
   ticket: 'HUNI-62',
@@ -126,10 +130,11 @@ registerEndpoint({
   method: 'get',
   path: '/api/laboratorio/ordenes/{id}/examenes/{orden_examen_id}/resultado/archivo',
   tag: TAG,
-  summary: 'URL firmada del PDF de resultado',
+  summary: 'URL firmada del archivo de resultado (PDF o imagen)',
   description:
     'Devuelve una URL firmada de Supabase Storage que vence a los 10 minutos. Acceso: médico tratante, el propio ' +
-    'paciente y administración (recepción no descarga resultados). Sin PDF → 404.',
+    'paciente y administración (recepción no descarga resultados). Sin archivo → 404. El `tipo_archivo` del ' +
+    'resultado indica si es `pdf` o `imagen`.',
   roles: ['administrador', 'doctor', 'paciente'],
   ticket: 'HUNI-62',
   estado: 'implementado',

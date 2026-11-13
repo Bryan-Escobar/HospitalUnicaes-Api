@@ -32,14 +32,17 @@ export const cambiarEstadoExamenBodySchema = z
   })
   .openapi('CambiarEstadoExamenBody');
 
-// multipart/form-data: al menos `valor` o `archivo`.
+// multipart/form-data: al menos `valor` o `archivo` (PDF o imagen).
 export const registrarResultadoBodySchema = z
   .object({
     valor: z.string().max(2000).optional().openapi({ example: '13.5' }),
     unidad: z.string().max(50).optional().openapi({ example: 'g/dL' }),
     rango_referencia: z.string().max(100).optional().openapi({ example: '12.0 - 15.5' }),
     observaciones: z.string().max(2000).optional(),
-    archivo: z.any().optional().openapi({ type: 'string', format: 'binary', description: 'PDF, máximo 10 MB' }),
+    archivo: z
+      .any()
+      .optional()
+      .openapi({ type: 'string', format: 'binary', description: 'PDF o imagen (JPG, PNG o WebP), máximo 10 MB' }),
   })
   .openapi('RegistrarResultadoBody');
 

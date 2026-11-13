@@ -71,6 +71,14 @@ export const ERROR_CODES = {
     status: 422,
     descripcion: 'No se puede pasar a mantenimiento sin cerrar antes el servicio en curso.',
   },
+  SOLICITUD_CERRADA: {
+    status: 409,
+    descripcion: 'La solicitud de ambulancia ya está finalizada o cancelada y no se modifica.',
+  },
+  LIMITE_SOLICITUDES: {
+    status: 429,
+    descripcion: 'Ya hay una solicitud de ambulancia en espera desde aquí; espera a que recepción la atienda.',
+  },
 
   // Inventario: lotes, activos y proveedores (HUNI-97)
   TIPO_CONTROL_INVALIDO: {
@@ -88,6 +96,16 @@ export const ERROR_CODES = {
   STOCK_INSUFICIENTE: { status: 409, descripcion: 'El lote no tiene unidades suficientes para la salida.' },
   PROVEEDOR_INVALIDO: { status: 422, descripcion: 'La entrada o el activo necesita un proveedor activo.' },
   ACTIVO_DADO_DE_BAJA: { status: 409, descripcion: 'El activo está dado de baja y ya no se puede modificar.' },
+  // HUNI-98
+  ITEM_CON_EXISTENCIAS: {
+    status: 422,
+    descripcion:
+      'El ítem todavía tiene existencias: descarta sus lotes o da de baja sus equipos antes de desactivarlo.',
+  },
+  ITEM_INACTIVO: {
+    status: 422,
+    descripcion: 'El ítem está desactivado: reactívalo antes de registrar movimientos o equipos.',
+  },
 } as const satisfies Record<string, { status: number; descripcion: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;
@@ -102,5 +120,6 @@ export const DEFAULT_CODE_BY_STATUS: Record<number, ErrorCode> = {
   404: 'NO_ENCONTRADO',
   409: 'CONFLICTO',
   422: 'REGLA_DE_NEGOCIO',
+  429: 'LIMITE_SOLICITUDES',
   500: 'ERROR_INTERNO',
 };
