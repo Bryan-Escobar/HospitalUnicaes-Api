@@ -101,8 +101,8 @@ select is((select estado::text from public.ordenes_laboratorio where id = '77777
 -- ---------- Storage y Realtime ----------
 select results_eq(
   $$ select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'resultados-laboratorio' $$,
-  $$ values (false, 10485760::bigint, array['application/pdf']::text[]) $$,
-  'bucket privado, solo PDF y hasta 10 MB'
+  $$ values (false, 10485760::bigint, array['application/pdf', 'image/jpeg', 'image/png', 'image/webp']::text[]) $$,
+  'bucket privado, PDF o imagen (HUNI-63) y hasta 10 MB'
 );
 select set_has(
   $$ select tablename::text from pg_publication_tables where pubname = 'supabase_realtime' $$,
