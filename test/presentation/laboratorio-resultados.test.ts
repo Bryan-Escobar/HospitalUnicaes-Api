@@ -19,6 +19,11 @@ const PERSONAL_RECEPCION = 'cccccccc-0000-4000-8000-000000000003';
 
 const URL_EXAMEN = `/api/laboratorio/ordenes/${ORDEN_ID}/examenes/${EXAMEN_ID}`;
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF');
+const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(16)]);
+const JPG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(16)]);
+const WEBP = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8 '), Buffer.alloc(8)]);
+/** Ruta única por subida: `{orden}/{examen}-{uuid}.{ext}`. */
+const rutaCon = (ext: string) => new RegExp(`^${ORDEN_ID}/${EXAMEN_ID}-[0-9a-f-]{36}\\.${ext}$`);
 
 const recepcion = { id: PERSONAL_RECEPCION, nombres: 'Lucía', apellidos: 'Herrera Gómez' };
 
@@ -92,7 +97,7 @@ const comoPersonal = async (rol: 'doctor' | 'recepcionista' | 'administrador', p
   return headers;
 };
 
-describe('Laboratorio API: órdenes y resultados (HUNI-62)', () => {
+describe('Laboratorio API: órdenes y resultados (HUNI-62, HUNI-63)', () => {
   describe('Autenticación', () => {
     test.each([
       ['get', '/api/laboratorio/ordenes'],
@@ -257,6 +262,19 @@ describe('Laboratorio API: órdenes y resultados (HUNI-62)', () => {
       expect(res.body.code).toBe('TRANSICION_INVALIDA');
     });
 
+    test('otro usuario lo inició a la vez (el UPDATE condicionado no cambia nada) → 422', async () => {
+      lab('findExamen').mockResolvedValue(examen('pendiente'));
+      lab('iniciarExamen').mockResolvedValue(null);
+
+      const res = await request(app)
+        .patch(`${URL_EXAMEN}/estado`)
+        .set(await sesionComo('recepcionista'))
+        .send({ estado: 'en_proceso' });
+
+      expect(res.status).toBe(422);
+      expect(res.body.code).toBe('TRANSICION_INVALIDA');
+    });
+
     test('examen que no es de esa orden → 404', async () => {
       lab('findExamen').mockResolvedValue(null);
 
@@ -283,7 +301,7 @@ describe('Laboratorio API: órdenes y resultados (HUNI-62)', () => {
       const headers = await comoPersonal('recepcionista', PERSONAL_RECEPCION);
       lab('findExamen').mockResolvedValue(examen('en_proceso'));
       const registrar = lab('registrarResultado').mockResolvedValue(examen('completado'));
-      const subir = storage('subirPdf');
+      const subir = storage('subirArchivo');
 
       const res = await request(app)
         .put(`${URL_EXAMEN}/resultado`)
@@ -304,10 +322,10 @@ describe('Laboratorio API: órdenes y resultados (HUNI-62)', () => {
       expect(subir).not.toHaveBeenCalled();
     });
 
-    test('con PDF → se sube a Storage y se guarda su ruta', async () => {
+    test('con PDF → se sube a Storage en una ruta única y se guarda su ruta', async () => {
       const headers = await comoPersonal('recepcionista', PERSONAL_RECEPCION);
       lab('findExamen').mockResolvedValue(examen('en_proceso'));
-      const subir = storage('subirPdf').mockResolvedValue();
+      const subir = storage('subirArchivo').mockResolvedValue();
       const registrar = lab('registrarResultado').mockResolvedValue(examen('completado', 'ruta.pdf'));
 
       const res = await request(app)
@@ -316,9 +334,61 @@ describe('Laboratorio API: órdenes y resultados (HUNI-62)', () => {
         .attach('archivo', PDF, { filename: 'hemograma.pdf', contentType: 'application/pdf' });
 
       expect(res.status).toBe(200);
-      expect(res.body.data.resultado.tiene_archivo).toBe(true);
-      expect(subir).toHaveBeenCalledWith(`${ORDEN_ID}/${EXAMEN_ID}.pdf`, expect.any(Buffer));
-      expect(registrar.mock.calls[0][2]).toMatchObject({ archivo_url: `${ORDEN_ID}/${EXAMEN_ID}.pdf` });
+      expect(res.body.data.resultado).toMatchObject({ tiene_archivo: true, tipo_archivo: 'pdf' });
+      expect(subir).toHaveBeenCalledWith(expect.stringMatching(rutaCon('pdf')), expect.any(Buffer), 'application/pdf');
+      expect(registrar.mock.calls[0][2].archivo_url).toBe(subir.mock.calls[0][0]);
+    });
+
+    test.each([
+      ['png', PNG, 'image/png', 'image/png'],
+      ['jpg', JPG, 'image/jpeg', 'image/jpeg'],
+      ['webp', WEBP, 'image/webp', 'image/webp'],
+    ] as const)('con imagen %s → se sube con su tipo real (HUNI-63)', async (ext, contenido, enviado, real) => {
+      const headers = await comoPersonal('recepcionista', PERSONAL_RECEPCION);
+      lab('findExamen').mockResolvedValue(examen('en_proceso'));
+      const subir = storage('subirArchivo').mockResolvedValue();
+      lab('registrarResultado').mockResolvedValue(examen('completado', `ruta.${ext}`));
+
+      const res = await request(app)
+        .put(`${URL_EXAMEN}/resultado`)
+        .set(headers)
+        .attach('archivo', contenido, { filename: `foto.${ext}`, contentType: enviado });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.resultado).toMatchObject({ tiene_archivo: true, tipo_archivo: 'imagen' });
+      expect(subir).toHaveBeenCalledWith(expect.stringMatching(rutaCon(ext)), expect.any(Buffer), real);
+    });
+
+    test('una imagen declarada como PNG que en realidad es otra cosa → 400 SOLICITUD_INVALIDA', async () => {
+      const headers = await comoPersonal('recepcionista', PERSONAL_RECEPCION);
+      lab('findExamen').mockResolvedValue(examen('en_proceso'));
+      const subir = storage('subirArchivo');
+
+      const res = await request(app)
+        .put(`${URL_EXAMEN}/resultado`)
+        .set(headers)
+        .attach('archivo', Buffer.from('<svg onload=alert(1)>'), { filename: 'x.png', contentType: 'image/png' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('SOLICITUD_INVALIDA');
+      expect(subir).not.toHaveBeenCalled();
+    });
+
+    test('dos resultados a la vez: el segundo choca con el índice único → 422 y se borra su archivo', async () => {
+      const headers = await comoPersonal('recepcionista', PERSONAL_RECEPCION);
+      lab('findExamen').mockResolvedValue(examen('en_proceso'));
+      const subir = storage('subirArchivo').mockResolvedValue();
+      lab('registrarResultado').mockRejectedValue(Object.assign(new Error('Unique constraint'), { code: 'P2002' }));
+      const eliminar = storage('eliminar').mockResolvedValue();
+
+      const res = await request(app)
+        .put(`${URL_EXAMEN}/resultado`)
+        .set(headers)
+        .attach('archivo', PDF, { filename: 'r.pdf', contentType: 'application/pdf' });
+
+      expect(res.status).toBe(422);
+      expect(res.body.code).toBe('TRANSICION_INVALIDA');
+      expect(eliminar).toHaveBeenCalledWith(subir.mock.calls[0][0]);
     });
 
     test('sin valor ni PDF → 422 RESULTADO_REQUERIDO', async () => {
@@ -362,7 +432,7 @@ describe('Laboratorio API: órdenes y resultados (HUNI-62)', () => {
     test('un "PDF" falso (no empieza con %PDF-) → 400 SOLICITUD_INVALIDA', async () => {
       const headers = await comoPersonal('recepcionista', PERSONAL_RECEPCION);
       lab('findExamen').mockResolvedValue(examen('en_proceso'));
-      const subir = storage('subirPdf');
+      const subir = storage('subirArchivo');
 
       const res = await request(app)
         .put(`${URL_EXAMEN}/resultado`)
@@ -389,7 +459,7 @@ describe('Laboratorio API: órdenes y resultados (HUNI-62)', () => {
     test('si la BD falla después de subir el PDF, se borra el archivo', async () => {
       const headers = await comoPersonal('recepcionista', PERSONAL_RECEPCION);
       lab('findExamen').mockResolvedValue(examen('en_proceso'));
-      storage('subirPdf').mockResolvedValue();
+      const subir = storage('subirArchivo').mockResolvedValue();
       lab('registrarResultado').mockRejectedValue(new Error('TRANSICION_INVALIDA: el examen ya está completado'));
       const eliminar = storage('eliminar').mockResolvedValue();
 
@@ -399,7 +469,7 @@ describe('Laboratorio API: órdenes y resultados (HUNI-62)', () => {
         .attach('archivo', PDF, { filename: 'r.pdf', contentType: 'application/pdf' });
 
       expect(res.status).toBe(422);
-      expect(eliminar).toHaveBeenCalledWith(`${ORDEN_ID}/${EXAMEN_ID}.pdf`);
+      expect(eliminar).toHaveBeenCalledWith(subir.mock.calls[0][0]);
     });
 
     test('recepción sin registro de personal → 403 PERFIL_INCOMPLETO', async () => {

@@ -157,12 +157,19 @@ export class LaboratorioRepository {
     return prisma.orden_examenes.findFirst({ where: { id: ordenExamenId, orden_id: ordenId }, include: examenInclude });
   }
 
-  /** pendiente → en_proceso (la BD valida la transición y guarda fecha_inicio). */
-  async iniciarExamen(ordenExamenId: string): Promise<OrdenExamenCompleto> {
-    return prisma.orden_examenes.update({
-      where: { id: ordenExamenId },
-      data: { estado: 'en_proceso', fecha_inicio: new Date() },
-      include: examenInclude,
+  /**
+   * pendiente → en_proceso con un UPDATE condicionado al estado (la BD además valida la transición).
+   * Si dos peticiones llegan a la vez, la segunda espera el bloqueo de la fila, ya no la ve `pendiente`
+   * y devuelve null (no reescribe `fecha_inicio`).
+   */
+  async iniciarExamen(ordenExamenId: string): Promise<OrdenExamenCompleto | null> {
+    return prisma.$transaction(async (tx) => {
+      const { count } = await tx.orden_examenes.updateMany({
+        where: { id: ordenExamenId, estado: 'pendiente' },
+        data: { estado: 'en_proceso', fecha_inicio: new Date() },
+      });
+      if (count === 0) return null;
+      return tx.orden_examenes.findUniqueOrThrow({ where: { id: ordenExamenId }, include: examenInclude });
     });
   }
 

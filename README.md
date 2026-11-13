@@ -217,19 +217,20 @@ Endpoints de la API (detalle en `/docs`, etiqueta *Consultas* y *Laboratorio*):
 - **Tiempo real:** suscríbete a `postgres_changes` de `camas` (cualquier usuario con sesión; no trae pacientes) y de
   `hospitalizaciones` (solo quien puede verlas, por RLS).
 
-## Laboratorio: órdenes y resultados (HUNI-62)
+## Laboratorio: órdenes y resultados (HUNI-62, HUNI-63)
 
 Cada examen sigue `pendiente → en_proceso → completado`; cualquier otra transición → 422 `TRANSICION_INVALIDA`
-(lo valida la API y también la base de datos). El estado de la orden sale de sus exámenes.
+(lo valida la API y también la base de datos, y es seguro ante dos usuarios a la vez: el segundo recibe 422).
+El estado de la orden sale de sus exámenes. Se filtran con `?estado=pendiente|en_proceso|completado`.
 
 | Qué | Endpoint | Quién |
 |---|---|---|
 | Listar / ver órdenes | `GET /api/laboratorio/ordenes` · `GET /api/laboratorio/ordenes/{id}` | Admin y recepción: todas · doctor: de pacientes que atiende · paciente: las suyas |
 | Iniciar examen (toma de muestra) | `PATCH …/examenes/{orden_examen_id}/estado` con `{ "estado": "en_proceso" }` | Admin y recepción |
-| Registrar resultado y completar | `PUT …/examenes/{orden_examen_id}/resultado` (`multipart/form-data`: `valor`, `unidad`, `rango_referencia`, `observaciones`, `archivo` PDF ≤ 10 MB) | Admin y recepción; sin valor ni PDF → 422 `RESULTADO_REQUERIDO` |
-| Descargar el PDF | `GET …/examenes/{orden_examen_id}/resultado/archivo` → URL firmada (10 min) | Médico tratante, el paciente y admin (recepción no) |
+| Registrar resultado y completar | `PUT …/examenes/{orden_examen_id}/resultado` (`multipart/form-data`: `valor`, `unidad`, `rango_referencia`, `observaciones`, `archivo` PDF o imagen JPG/PNG/WebP ≤ 10 MB) | Admin y recepción; sin valor ni archivo → 422 `RESULTADO_REQUERIDO` |
+| Descargar el archivo (PDF o imagen; ver `tipo_archivo`) | `GET …/examenes/{orden_examen_id}/resultado/archivo` → URL firmada (10 min) | Médico tratante, el paciente y admin (recepción no) |
 
-- Los PDF viven en el bucket **privado** `resultados-laboratorio` de Supabase Storage; solo la API escribe y firma.
+- Los archivos viven en el bucket **privado** `resultados-laboratorio` de Supabase Storage; solo la API escribe y firma.
 - **Tiempo real:** suscríbete con el SDK a `postgres_changes` de `orden_examenes` (o `ordenes_laboratorio`). El RLS hace que
   cada usuario reciba solo sus órdenes. El aviso trae el estado; para ver el resultado, vuelve a pedir la orden a la API.
 
