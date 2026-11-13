@@ -787,3 +787,29 @@ where (s.solicitada_por is null or exists (select 1 from public.perfiles pf wher
     select 1 from public.solicitudes_ambulancia x
     where x.direccion_origen = s.origen or x.codigo_seguimiento = s.codigo
   );
+
+-- -----------------------------------------------------------------------------
+-- Solicitudes de atención (HUNI-56): dos pendientes para la bandeja de recepción y una ya rechazada
+-- para que Carlos vea la respuesta en iOS.
+-- -----------------------------------------------------------------------------
+insert into public.solicitudes_atencion
+  (paciente_id, motivo, especialidad_id, fecha_preferida, franja, estado, respuesta, respondida_por, respondida_en, created_at)
+select pa.id, s.motivo, e.id, public.hoy_local() + s.en_dias, s.franja::public.franja_horaria,
+       s.estado::public.estado_solicitud_atencion, s.respuesta,
+       case when s.estado = 'pendiente' then null else '11111111-1111-4111-8111-000000000003'::uuid end,
+       case when s.estado = 'pendiente' then null else now() - interval '1 day' end,
+       now() - s.hace
+from (values
+  ('11111111-1111-4111-8111-000000000004'::uuid, 'Dolor de garganta y fiebre desde hace dos días', 'Medicina general',
+   1, 'manana', 'pendiente', null, interval '40 minutes'),
+  ('11111111-1111-4111-8111-000000000007'::uuid, 'Control prenatal de rutina', null,
+   2, 'cualquiera', 'pendiente', null, interval '3 hours'),
+  ('11111111-1111-4111-8111-000000000004'::uuid, 'Revisión de lunares', 'Cirugía general',
+   3, 'tarde', 'rechazada', 'Por ahora no hay cirujano disponible; te recomendamos consulta general primero.',
+   interval '2 days')
+) as s (perfil_id, motivo, especialidad, en_dias, franja, estado, respuesta, hace)
+join public.pacientes pa on pa.perfil_id = s.perfil_id and pa.activo
+left join public.especialidades e on e.nombre = s.especialidad
+where not exists (
+  select 1 from public.solicitudes_atencion x where x.paciente_id = pa.id and x.motivo = s.motivo
+);
