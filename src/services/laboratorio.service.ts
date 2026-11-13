@@ -8,6 +8,7 @@ import {
 import { CustomError } from '../domain/errors/CustomError';
 import { UsuarioAutenticado } from '../domain/interfaces';
 import { CrearOrdenBody, ListarOrdenesQuery, RegistrarResultadoBody } from '../domain/validators/laboratorio.validator';
+import { randomUUID } from 'node:crypto';
 import { logger } from '../config/logger';
 import { paginacion, rangoDePagina } from '../lib/paginacion';
 import { z } from '../lib/zod';
@@ -48,7 +49,7 @@ export interface ArchivoSubido {
  * - HUNI-62: órdenes y resultados con máquina de estados pendiente → en_proceso → completado.
  *   Ven las órdenes: administración y recepción (procesa los exámenes), el médico tratante y el paciente.
  *   Inician exámenes y registran resultados: administración y recepción (context.md, HUNI-62).
- *   El PDF lo descargan solo el médico tratante, el paciente y administración (URL firmada).
+ *   El archivo (PDF o imagen, HUNI-63) lo descargan solo el médico tratante, el paciente y administración (URL firmada).
  *   La base de datos también valida cada transición (TRANSICION_INVALIDA / RESULTADO_REQUERIDO).
  */
 export class LaboratorioService {
@@ -116,12 +117,17 @@ export class LaboratorioService {
         `El examen está ${examen.estado}; solo se inicia un examen pendiente`,
       );
     }
-    return toOrdenExamen(await this.laboratorioRepository.iniciarExamen(ordenExamenId));
+    const iniciado = await this.laboratorioRepository.iniciarExamen(ordenExamenId);
+    if (!iniciado) {
+      throw CustomError.fromCode('TRANSICION_INVALIDA', 'Otro usuario ya inició este examen; actualiza la orden');
+    }
+    return toOrdenExamen(iniciado);
   }
 
   /**
-   * en_proceso → completado con su resultado (valor y/o PDF). Sin resultado → 422 RESULTADO_REQUERIDO.
-   * El PDF va a Storage antes de guardar; si la base de datos falla, se borra para no dejar archivos huérfanos.
+   * en_proceso → completado con su resultado (valor y/o archivo PDF o imagen). Sin resultado → 422 RESULTADO_REQUERIDO.
+   * El archivo va a Storage antes de guardar, en una ruta única por subida (dos peticiones simultáneas no se pisan);
+   * si la base de datos falla, se borra para no dejar archivos huérfanos.
    */
   async registrarResultado(
     ordenId: string,
@@ -144,12 +150,16 @@ export class LaboratorioService {
 
     const valor = body.valor?.trim() || undefined;
     if (!valor && !archivo) throw CustomError.fromCode('RESULTADO_REQUERIDO');
-    if (archivo && archivo.buffer.subarray(0, 5).toString('latin1') !== '%PDF-') {
-      throw CustomError.fromCode('SOLICITUD_INVALIDA', 'El archivo no es un PDF válido');
+    const tipo = archivo ? tipoDeArchivo(archivo.buffer) : undefined;
+    if (archivo && !tipo) {
+      throw CustomError.fromCode(
+        'SOLICITUD_INVALIDA',
+        'El archivo no es un PDF ni una imagen (JPG, PNG o WebP) válida',
+      );
     }
 
-    const ruta = archivo ? `${ordenId}/${ordenExamenId}.pdf` : undefined;
-    if (archivo && ruta) await this.storage.subirPdf(ruta, archivo.buffer);
+    const ruta = tipo ? `${ordenId}/${ordenExamenId}-${randomUUID()}.${tipo.extension}` : undefined;
+    if (archivo && tipo && ruta) await this.storage.subirArchivo(ruta, archivo.buffer, tipo.mime);
 
     try {
       const completado = await this.laboratorioRepository.registrarResultado(ordenExamenId, validadoPor, {
@@ -164,13 +174,17 @@ export class LaboratorioService {
       if (ruta) {
         await this.storage
           .eliminar(ruta)
-          .catch((e: unknown) => logger.warn({ err: e }, 'No se pudo borrar el PDF huérfano'));
+          .catch((e: unknown) => logger.warn({ err: e }, 'No se pudo borrar el archivo huérfano'));
+      }
+      // Dos resultados a la vez para el mismo examen: el índice único deja pasar solo el primero.
+      if (esDuplicado(error)) {
+        throw CustomError.fromCode('TRANSICION_INVALIDA', 'Otro usuario ya registró el resultado de este examen');
       }
       throw error;
     }
   }
 
-  /** URL firmada (10 min) del PDF. Recepción no descarga resultados (lo corta requireRole). */
+  /** URL firmada (10 min) del archivo (PDF o imagen). Recepción no descarga resultados (lo corta requireRole). */
   async urlArchivo(
     ordenId: string,
     ordenExamenId: string,
@@ -179,7 +193,7 @@ export class LaboratorioService {
     await this.exigirAccesoOrden(ordenId, usuario);
     const examen = await this.examenDeOrden(ordenId, ordenExamenId);
     const ruta = examen.resultados_laboratorio?.archivo_url;
-    if (!ruta) throw CustomError.notFound('El resultado no tiene PDF');
+    if (!ruta) throw CustomError.notFound('El resultado no tiene archivo');
     const url = await this.storage.urlFirmada(ruta, URL_FIRMADA_SEGUNDOS);
     return { url, expira_en: new Date(Date.now() + URL_FIRMADA_SEGUNDOS * 1000).toISOString() };
   }
@@ -209,6 +223,33 @@ export class LaboratorioService {
     return examen;
   }
 }
+
+interface TipoArchivo {
+  mime: string;
+  extension: string;
+}
+
+/** Tipo real del archivo por sus primeros bytes (no se confía en el Content-Type que manda el cliente). */
+export const tipoDeArchivo = (buffer: Buffer): TipoArchivo | undefined => {
+  if (buffer.subarray(0, 5).toString('latin1') === '%PDF-') return { mime: 'application/pdf', extension: 'pdf' };
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return { mime: 'image/jpeg', extension: 'jpg' };
+  if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return { mime: 'image/png', extension: 'png' };
+  }
+  if (buffer.subarray(0, 4).toString('latin1') === 'RIFF' && buffer.subarray(8, 12).toString('latin1') === 'WEBP') {
+    return { mime: 'image/webp', extension: 'webp' };
+  }
+  return undefined;
+};
+
+/** `pdf` o `imagen` según la extensión guardada en la ruta (null si no hay archivo). */
+export const tipoArchivoDeRuta = (ruta: string | null): 'pdf' | 'imagen' | null => {
+  if (!ruta) return null;
+  return ruta.toLowerCase().endsWith('.pdf') ? 'pdf' : 'imagen';
+};
+
+const esDuplicado = (error: unknown): boolean =>
+  Boolean(error && typeof error === 'object' && 'code' in error && (error as { code: unknown }).code === 'P2002');
 
 /** El estado de la orden sale de sus exámenes: completado cuando todos lo están. */
 export const estadoDeOrden = (estados: EstadoLaboratorio[]): EstadoLaboratorio => {
@@ -240,6 +281,7 @@ export const toOrdenExamen = (oe: OrdenExamenCompleto): OrdenExamenDto => ({
         rango_referencia: oe.resultados_laboratorio.rango_referencia,
         observaciones: oe.resultados_laboratorio.observaciones,
         tiene_archivo: Boolean(oe.resultados_laboratorio.archivo_url),
+        tipo_archivo: tipoArchivoDeRuta(oe.resultados_laboratorio.archivo_url),
         validado_por: oe.resultados_laboratorio.personal ? toPersona(oe.resultados_laboratorio.personal) : null,
         fecha_resultado: oe.resultados_laboratorio.fecha_resultado.toISOString(),
       }
