@@ -246,6 +246,58 @@ join public.proveedores p on p.nit = '0614-020290-102-1'
 join public.perfiles pf on pf.id = '11111111-1111-4111-8111-000000000001'
 on conflict (item_id, numero_serie) do nothing;
 
+-- HUNI-98: casos para la Web (sin tocar MED-0001 ni EQP-0001, que usa 03_inventario.test.sql):
+--   proveedor desactivado, ítem desactivado, lote vencido con unidades (alerta 'vencido', solo admite un
+--   ajuste), salidas y ajustes en el historial y un equipo dado de baja.
+insert into public.proveedores (nombre, nit, nrc, contacto, telefono, email, direccion, activo) values
+  ('Insumos Antiguos Demo, S.A. de C.V.', '0210-040490-104-3', '100004-4', 'Raúl Paz', '+503 2400-0004',
+   'info@insumos-antiguos-demo.test', 'Santa Ana', false)
+on conflict (nit) do nothing;
+
+insert into public.inventario_items (codigo, nombre, categoria, unidad_medida, stock_minimo, ubicacion, activo) values
+  ('INS-0003', 'Gasa estéril 10 x 10 cm (descontinuada)', 'insumo', 'paquete', 0, 'Bodega central', false)
+on conflict (codigo) do nothing;
+
+do $seed_inventario_huni98$
+declare
+  v_admin     uuid := '11111111-1111-4111-8111-000000000001';
+  v_proveedor uuid := (select id from public.proveedores where nit = '0614-010190-101-0');
+  v_amx       uuid := (select id from public.inventario_items where codigo = 'MED-0002');
+  v_jer       uuid := (select id from public.inventario_items where codigo = 'INS-0001');
+begin
+  if not exists (select 1 from public.perfiles where id = v_admin) then
+    return;
+  end if;
+
+  -- Lote que ya venció: entra con caducidad futura y luego se mueve la fecha (una entrada vencida no se acepta)
+  if not exists (select 1 from public.lotes_inventario where item_id = v_amx and numero_lote = 'AMX-2301') then
+    perform public.registrar_entrada_lote(v_amx, 'AMX-2301', public.hoy_local() + 5, 40, v_proveedor, v_admin,
+                                          'Carga inicial (seed)');
+    update public.lotes_inventario set fecha_caducidad = public.hoy_local() - 3
+    where item_id = v_amx and numero_lote = 'AMX-2301';
+  end if;
+
+  insert into public.movimientos_inventario (item_id, lote_id, tipo, cantidad, motivo, registrado_por)
+  select m.item_id, l.id, m.tipo::public.tipo_movimiento, m.cantidad, m.motivo, v_admin
+  from (values
+    (v_amx, 'AMX-2403', 'salida', 10, 'Entrega a Emergencia (seed)'),
+    (v_jer, 'JER-2404', 'salida', 60, 'Entrega a Hospitalización (seed)'),
+    (v_jer, 'JER-2404', 'ajuste', -2, 'Conteo físico: 2 unidades dañadas (seed)')
+  ) as m (item_id, lote, tipo, cantidad, motivo)
+  join public.lotes_inventario l on l.item_id = m.item_id and l.numero_lote = m.lote
+  where not exists (select 1 from public.movimientos_inventario x where x.lote_id = l.id and x.motivo = m.motivo);
+end
+$seed_inventario_huni98$;
+
+insert into public.activos (item_id, numero_serie, proveedor_id, estado, ubicacion, notas, registrado_por)
+select i.id, 'BIF-20002', p.id, 'dado_de_baja', 'Bodega de bajas', 'Fuera de servicio: tarjeta principal dañada',
+       '11111111-1111-4111-8111-000000000001'
+from public.inventario_items i
+join public.proveedores p on p.nit = '0614-020290-102-1'
+where i.codigo = 'EQP-0002'
+  and exists (select 1 from public.perfiles pf where pf.id = '11111111-1111-4111-8111-000000000001')
+on conflict (item_id, numero_serie) do nothing;
+
 -- -----------------------------------------------------------------------------
 -- Turnos (HUNI-51): semana tipo, de hoy - 7 a hoy + 14. Entre los médicos cubren las 24 horas:
 --   Roberto (interna)     lun–vie 07:00–15:00 · Gabriela (pediatría) lun–vie 13:00–21:00, sáb–dom 07:00–19:00
@@ -606,20 +658,30 @@ end
 $seed_historial_camas$;
 
 -- -----------------------------------------------------------------------------
--- Avisos generales (2 públicos y 1 interno)
+-- Avisos generales (HUNI-74): vigentes (3 públicos y 2 internos), 1 programado y 1 vencido.
+--   GET /api/publico/estado muestra solo los públicos vigentes; el personal ve también los internos;
+--   el administrador filtra programados y vencidos en GET /api/avisos?vigencia=...
 -- -----------------------------------------------------------------------------
-insert into public.avisos (titulo, contenido, autor_id, es_publico, fecha_expiracion)
-select a.titulo, a.contenido, '11111111-1111-4111-8111-000000000001', a.publico, now() + a.vigencia
+insert into public.avisos (titulo, contenido, autor_id, es_publico, fecha_publicacion, fecha_expiracion)
+select a.titulo, a.contenido, '11111111-1111-4111-8111-000000000001', a.publico, now() + a.desde, now() + a.hasta
 from (values
-  ('Jornada de vacunación', 'Este sábado de 8:00 a 12:00 en el vestíbulo principal. Trae tu tarjeta de vacunación.', true, interval '30 days'),
-  ('Horario de visitas', 'Hospitalización: de 10:00 a 12:00 y de 16:00 a 18:00. Máximo 2 visitantes por paciente.', true, interval '365 days'),
-  ('Capacitación interna', 'Capacitación sobre el nuevo sistema de citas el viernes a las 14:00 en el auditorio.', false, interval '15 days')
-) as a (titulo, contenido, publico, vigencia)
+  ('Jornada de vacunación', 'Este sábado de 8:00 a 12:00 en el vestíbulo principal. Trae tu tarjeta de vacunación.', true, interval '0', interval '30 days'),
+  ('Horario de visitas', 'Hospitalización: de 10:00 a 12:00 y de 16:00 a 18:00. Máximo 2 visitantes por paciente.', true, interval '0', interval '365 days'),
+  ('Estacionamiento de emergencias', 'El acceso de la calle poniente queda reservado para ambulancias. Visitantes: usen el parqueo principal.', true, interval '-2 days', null),
+  ('Capacitación interna', 'Capacitación sobre el nuevo sistema de citas el viernes a las 14:00 en el auditorio.', false, interval '0', interval '15 days'),
+  ('Simulacro de evacuación', 'Simulacro el jueves a las 10:00. Jefaturas: revisen las rutas de su área con el personal.', false, interval '-1 day', interval '7 days'),
+  ('Feria de salud', 'Feria de salud preventiva en el vestíbulo: toma de presión, glucosa y orientación nutricional.', true, interval '10 days', interval '12 days'),
+  ('Mantenimiento de ascensores', 'Los ascensores del ala norte estuvieron en mantenimiento. Gracias por su comprensión.', true, interval '-20 days', interval '-5 days')
+) as a (titulo, contenido, publico, desde, hasta)
 where exists (select 1 from public.perfiles pf where pf.id = '11111111-1111-4111-8111-000000000001')
   and not exists (select 1 from public.avisos x where x.titulo = a.titulo);
 
 -- -----------------------------------------------------------------------------
--- Ambulancia: dos servicios ya finalizados para la bitácora (la ambulancia sigue disponible)
+-- Ambulancia (HUNI-70). La ambulancia queda disponible para que los clientes prueben el despacho.
+--   - Historial: servicios finalizados (con sesión y desde el botón público), una falsa alarma cancelada
+--     ya despachada y un mantenimiento, con su bitácora.
+--   - Pendientes ahora: una pública (solo GPS, código `demo-seguimiento-publico-0001`) y una de la paciente
+--     Ana Sofía desde la app. Recepción las ve y decide cuál despachar.
 -- -----------------------------------------------------------------------------
 insert into public.solicitudes_ambulancia (ambulancia_id, solicitada_por, paciente_id, direccion_origen, destino,
   descripcion_emergencia, fecha_solicitud, fecha_despacho, fecha_cierre, estado, prioridad)
@@ -634,3 +696,94 @@ cross join (select a.id from public.ambulancias a limit 1) am
 left join public.pacientes pa on pa.nombres = s.nombres and pa.apellidos = s.apellidos
 where exists (select 1 from public.perfiles pf where pf.id = '11111111-1111-4111-8111-000000000003')
   and not exists (select 1 from public.solicitudes_ambulancia x where x.direccion_origen = s.origen);
+
+-- Datos que agregó HUNI-70 a esos dos servicios (también en bases que ya los tenían)
+update public.solicitudes_ambulancia s
+set tipo_emergencia = d.tipo::public.tipo_emergencia, latitud = d.lat, longitud = d.lon, precision_m = 15,
+    despachada_por = '11111111-1111-4111-8111-000000000003', cerrada_por = '11111111-1111-4111-8111-000000000003',
+    fecha_en_curso = s.fecha_despacho + interval '20 minutes', notas_cierre = d.notas
+from (values
+  ('Chalchuapa, calle principal', 'neurologica', 13.986700, -89.681400, 'Paciente estable, ingresó a emergencias'),
+  ('Carretera a Metapán, km 70',  'accidente',   14.250300, -89.457800, 'Herido trasladado con fractura de brazo')
+) as d (origen, tipo, lat, lon, notas)
+where s.direccion_origen = d.origen and s.tipo_emergencia is null;
+
+-- Más historial: un servicio pedido por el paciente Carlos, uno desde el botón público y una falsa alarma.
+insert into public.solicitudes_ambulancia (ambulancia_id, canal, solicitada_por, paciente_id, direccion_origen,
+  latitud, longitud, precision_m, destino, descripcion_emergencia, tipo_emergencia, prioridad, telefono_contacto,
+  nombre_contacto, codigo_seguimiento, estado, fecha_solicitud, fecha_despacho, fecha_en_curso, fecha_cierre,
+  despachada_por, cerrada_por, notas_cierre, motivo_cancelacion)
+select am.id, s.canal::public.canal_solicitud, s.solicitada_por, pa.id, s.origen, s.lat, s.lon, s.precision, s.destino,
+       s.descripcion, s.tipo::public.tipo_emergencia, s.prioridad::public.prioridad, s.telefono, s.contacto, s.codigo,
+       s.estado::public.estado_solicitud, now() - s.hace, now() - s.hace + interval '4 minutes',
+       case when s.estado = 'finalizada' then now() - s.hace + interval '18 minutes' end,
+       now() - s.hace + interval '45 minutes',
+       '11111111-1111-4111-8111-000000000003'::uuid, '11111111-1111-4111-8111-000000000003'::uuid, s.notas, s.motivo
+from (values
+  ('app', '11111111-1111-4111-8111-000000000004'::uuid, 'Carlos', 'Martínez Rivas', 'Santa Ana, colonia El Palmar, pasaje 3 #12',
+   13.987900, -89.548300, 10, 'Hospital Universitario Central', 'Dolor en el pecho y falta de aire', 'cardiaca', 'critica',
+   '+503 7000-0004', null, null, 'finalizada', interval '2 days 5 hours', 'Infarto descartado; queda en observación', null),
+  ('publico', null::uuid, null, null, null,
+   13.994600, -89.559700, 25, 'Hospital Universitario Central', 'Señora mayor con crisis de asma en el parque', 'respiratoria', 'urgente',
+   '+503 7000-0099', 'Mario (vecino)', 'demo-seguimiento-finalizada-0001', 'finalizada', interval '6 days', 'Nebulizada en el traslado', null),
+  ('app', '11111111-1111-4111-8111-000000000003'::uuid, null, null, 'Santa Ana, avenida Independencia y 25 calle',
+   null, null, null, null, 'Llamada de persona inconsciente en la vía pública', 'otra', 'urgente',
+   '+503 7000-0098', 'Llamada telefónica', null, 'cancelada', interval '3 days 8 hours', null, 'Falsa alarma: nadie en la dirección')
+) as s (canal, solicitada_por, nombres, apellidos, origen, lat, lon, precision, destino, descripcion, tipo, prioridad,
+        telefono, contacto, codigo, estado, hace, notas, motivo)
+cross join (select a.id from public.ambulancias a limit 1) am
+left join public.pacientes pa on pa.nombres = s.nombres and pa.apellidos = s.apellidos
+where (s.solicitada_por is null or exists (select 1 from public.perfiles pf where pf.id = s.solicitada_por))
+  and exists (select 1 from public.perfiles pf where pf.id = '11111111-1111-4111-8111-000000000003')
+  and not exists (
+    select 1 from public.solicitudes_ambulancia x
+    where x.direccion_origen = s.origen or x.codigo_seguimiento = s.codigo
+  );
+
+-- Bitácora de esos servicios: la salida (en_servicio) y el regreso (disponible).
+insert into public.bitacora_ambulancia (ambulancia_id, solicitud_id, estado_anterior, estado_nuevo, descripcion, registrado_por, created_at)
+select s.ambulancia_id, s.id, 'disponible', 'en_servicio', 'Despacho', s.despachada_por, s.fecha_despacho
+from public.solicitudes_ambulancia s
+where s.fecha_despacho is not null and s.estado in ('finalizada', 'cancelada')
+  and not exists (select 1 from public.bitacora_ambulancia b where b.solicitud_id = s.id and b.estado_nuevo = 'en_servicio');
+
+insert into public.bitacora_ambulancia (ambulancia_id, solicitud_id, estado_anterior, estado_nuevo, descripcion, registrado_por, created_at)
+select s.ambulancia_id, s.id, 'en_servicio', 'disponible',
+       case when s.estado = 'cancelada' then 'Servicio cancelado' || coalesce(': ' || s.motivo_cancelacion, '')
+            else coalesce(s.notas_cierre, 'Servicio finalizado') end,
+       s.cerrada_por, s.fecha_cierre
+from public.solicitudes_ambulancia s
+where s.fecha_despacho is not null and s.fecha_cierre is not null and s.estado in ('finalizada', 'cancelada')
+  and not exists (select 1 from public.bitacora_ambulancia b where b.solicitud_id = s.id and b.estado_nuevo = 'disponible');
+
+-- Un mantenimiento preventivo hace 10 días (administradora Andrea)
+insert into public.bitacora_ambulancia (ambulancia_id, estado_anterior, estado_nuevo, descripcion, registrado_por, created_at)
+select am.id, m.anterior::public.estado_ambulancia, m.nuevo::public.estado_ambulancia, m.descripcion,
+       '11111111-1111-4111-8111-000000000001', now() - m.hace
+from (values
+  ('disponible',       'en_mantenimiento', 'Mantenimiento preventivo: cambio de aceite y frenos', interval '10 days'),
+  ('en_mantenimiento', 'disponible',       'Mantenimiento terminado',                             interval '9 days 20 hours')
+) as m (anterior, nuevo, descripcion, hace)
+cross join (select a.id from public.ambulancias a limit 1) am
+where exists (select 1 from public.perfiles pf where pf.id = '11111111-1111-4111-8111-000000000001')
+  and not exists (select 1 from public.bitacora_ambulancia b where b.descripcion = m.descripcion);
+
+-- Pendientes ahora (solo si no hay otra pendiente con esos datos)
+insert into public.solicitudes_ambulancia (ambulancia_id, canal, solicitada_por, paciente_id, direccion_origen,
+  latitud, longitud, precision_m, descripcion_emergencia, tipo_emergencia, prioridad, codigo_seguimiento, fecha_solicitud)
+select am.id, s.canal::public.canal_solicitud, s.solicitada_por, pa.id, s.origen, s.lat, s.lon, s.precision,
+       s.descripcion, s.tipo::public.tipo_emergencia, s.prioridad::public.prioridad, s.codigo, now() - s.hace
+from (values
+  ('publico', null::uuid, null, null, null, 13.994100, -89.556900, 30, null, null, 'urgente',
+   'demo-seguimiento-publico-0001', interval '6 minutes'),
+  ('app', '11111111-1111-4111-8111-000000000007'::uuid, 'Ana Sofía', 'Ramírez Cruz', 'Santa Ana, barrio San Rafael, 4a calle oriente #8',
+   13.991200, -89.552800, 12, 'Embarazo de 38 semanas con contracciones cada 5 minutos', 'obstetrica', 'urgente',
+   null, interval '2 minutes')
+) as s (canal, solicitada_por, nombres, apellidos, origen, lat, lon, precision, descripcion, tipo, prioridad, codigo, hace)
+cross join (select a.id from public.ambulancias a limit 1) am
+left join public.pacientes pa on pa.nombres = s.nombres and pa.apellidos = s.apellidos
+where (s.solicitada_por is null or exists (select 1 from public.perfiles pf where pf.id = s.solicitada_por))
+  and not exists (
+    select 1 from public.solicitudes_ambulancia x
+    where x.direccion_origen = s.origen or x.codigo_seguimiento = s.codigo
+  );

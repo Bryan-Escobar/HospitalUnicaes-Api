@@ -31,10 +31,12 @@ const validate =
     } catch (error) {
       if (!(error instanceof ZodError)) return next(error);
 
-      const errors: ValidationError[] = error.issues.map((issue) => ({
-        field: issue.path.join('.'),
-        message: issue.message,
-      }));
+      // En esquemas estrictos (.strict()) cada campo extra se informa con su nombre, p. ej. `stock_actual`.
+      const errors: ValidationError[] = error.issues.flatMap((issue) =>
+        issue.code === 'unrecognized_keys'
+          ? issue.keys.map((key) => ({ field: [...issue.path, key].join('.'), message: 'Campo no permitido' }))
+          : [{ field: issue.path.join('.'), message: issue.message }],
+      );
       const response: ApiResponse = {
         statusCode: 400,
         success: false,

@@ -20,7 +20,11 @@ export const ResultadoLaboratorioSchema = z
     unidad: z.string().nullable().openapi({ example: 'g/dL' }),
     rango_referencia: z.string().nullable().openapi({ example: '12.0 - 15.5' }),
     observaciones: z.string().nullable(),
-    tiene_archivo: z.boolean().openapi({ description: 'Si hay PDF; se descarga con el endpoint de archivo' }),
+    tiene_archivo: z.boolean().openapi({ description: 'Si hay archivo; se descarga con el endpoint de archivo' }),
+    tipo_archivo: z
+      .enum(['pdf', 'imagen'])
+      .nullable()
+      .openapi({ description: 'Tipo del archivo adjunto (HUNI-63); null si no hay archivo', example: 'pdf' }),
     validado_por: PersonaResumenSchema.nullable(),
     fecha_resultado: fechaHora,
   })

@@ -631,11 +631,14 @@ model bitacora_ambulancia {
   estado_nuevo           estado_ambulancia
   descripcion            String?
   created_at             DateTime                @default(now()) @db.Timestamptz(6)
+  registrado_por         String?                 @db.Uuid
   ambulancias            ambulancias             @relation(fields: [ambulancia_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  perfiles               perfiles?               @relation(fields: [registrado_por], references: [id], onUpdate: NoAction)
   solicitudes_ambulancia solicitudes_ambulancia? @relation(fields: [solicitud_id], references: [id], onUpdate: NoAction)
 
   @@index([ambulancia_id])
   @@index([solicitud_id])
+  @@index([created_at(sort: Desc)])
   @@schema("public")
 }
 
@@ -920,23 +923,26 @@ model pacientes {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model perfiles {
-  id                     String                   @id @db.Uuid
-  rol                    rol_usuario              @default(paciente)
-  nombres                String                   @default("")
-  apellidos              String                   @default("")
-  email                  String?                  @unique
-  telefono               String?
-  avatar_url             String?
-  activo                 Boolean                  @default(true)
-  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
-  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
-  activos                activos[]
-  avisos                 avisos[]
-  movimientos_inventario movimientos_inventario[]
-  pacientes              pacientes?
-  users                  users                    @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  personal               personal?
-  solicitudes_ambulancia solicitudes_ambulancia[]
+  id                                                                     String                   @id @db.Uuid
+  rol                                                                    rol_usuario              @default(paciente)
+  nombres                                                                String                   @default("")
+  apellidos                                                              String                   @default("")
+  email                                                                  String?                  @unique
+  telefono                                                               String?
+  avatar_url                                                             String?
+  activo                                                                 Boolean                  @default(true)
+  created_at                                                             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at                                                             DateTime                 @default(now()) @db.Timestamptz(6)
+  activos                                                                activos[]
+  avisos                                                                 avisos[]
+  bitacora_ambulancia                                                    bitacora_ambulancia[]
+  movimientos_inventario                                                 movimientos_inventario[]
+  pacientes                                                              pacientes?
+  users                                                                  users                    @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  personal                                                               personal?
+  solicitudes_ambulancia_solicitudes_ambulancia_cerrada_porToperfiles    solicitudes_ambulancia[] @relation("solicitudes_ambulancia_cerrada_porToperfiles")
+  solicitudes_ambulancia_solicitudes_ambulancia_despachada_porToperfiles solicitudes_ambulancia[] @relation("solicitudes_ambulancia_despachada_porToperfiles")
+  solicitudes_ambulancia                                                 solicitudes_ambulancia[]
 
   @@schema("public")
 }
@@ -1051,25 +1057,41 @@ model resultados_laboratorio {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model solicitudes_ambulancia {
-  id                     String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ambulancia_id          String                @db.Uuid
-  solicitada_por         String                @db.Uuid
-  paciente_id            String?               @db.Uuid
-  direccion_origen       String
-  destino                String?
-  descripcion_emergencia String?
-  prioridad              prioridad             @default(urgente)
-  estado                 estado_solicitud      @default(pendiente)
-  fecha_solicitud        DateTime              @default(now()) @db.Timestamptz(6)
-  fecha_despacho         DateTime?             @db.Timestamptz(6)
-  fecha_cierre           DateTime?             @db.Timestamptz(6)
-  bitacora_ambulancia    bitacora_ambulancia[]
-  ambulancias            ambulancias           @relation(fields: [ambulancia_id], references: [id], onUpdate: NoAction)
-  pacientes              pacientes?            @relation(fields: [paciente_id], references: [id], onUpdate: NoAction)
-  perfiles               perfiles              @relation(fields: [solicitada_por], references: [id], onUpdate: NoAction)
+  id                                                       String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ambulancia_id                                            String                @db.Uuid
+  solicitada_por                                           String?               @db.Uuid
+  paciente_id                                              String?               @db.Uuid
+  direccion_origen                                         String?
+  destino                                                  String?
+  descripcion_emergencia                                   String?
+  prioridad                                                prioridad             @default(urgente)
+  estado                                                   estado_solicitud      @default(pendiente)
+  fecha_solicitud                                          DateTime              @default(now()) @db.Timestamptz(6)
+  fecha_despacho                                           DateTime?             @db.Timestamptz(6)
+  fecha_cierre                                             DateTime?             @db.Timestamptz(6)
+  canal                                                    canal_solicitud       @default(app)
+  tipo_emergencia                                          tipo_emergencia?
+  latitud                                                  Decimal?              @db.Decimal(9, 6)
+  longitud                                                 Decimal?              @db.Decimal(9, 6)
+  precision_m                                              Int?
+  telefono_contacto                                        String?
+  nombre_contacto                                          String?
+  codigo_seguimiento                                       String?               @unique
+  fecha_en_curso                                           DateTime?             @db.Timestamptz(6)
+  despachada_por                                           String?               @db.Uuid
+  cerrada_por                                              String?               @db.Uuid
+  notas_cierre                                             String?
+  motivo_cancelacion                                       String?
+  bitacora_ambulancia                                      bitacora_ambulancia[]
+  ambulancias                                              ambulancias           @relation(fields: [ambulancia_id], references: [id], onUpdate: NoAction)
+  perfiles_solicitudes_ambulancia_cerrada_porToperfiles    perfiles?             @relation("solicitudes_ambulancia_cerrada_porToperfiles", fields: [cerrada_por], references: [id], onUpdate: NoAction)
+  perfiles_solicitudes_ambulancia_despachada_porToperfiles perfiles?             @relation("solicitudes_ambulancia_despachada_porToperfiles", fields: [despachada_por], references: [id], onUpdate: NoAction)
+  pacientes                                                pacientes?            @relation(fields: [paciente_id], references: [id], onUpdate: NoAction)
+  perfiles                                                 perfiles?             @relation(fields: [solicitada_por], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([paciente_id])
   @@index([solicitada_por])
+  @@index([fecha_solicitud(sort: Desc)])
   @@schema("public")
 }
 
@@ -1327,6 +1349,26 @@ enum tipo_movimiento_cama {
   ingreso
   traslado
   alta
+
+  @@schema("public")
+}
+
+enum canal_solicitud {
+  app
+  publico
+
+  @@schema("public")
+}
+
+enum tipo_emergencia {
+  accidente
+  cardiaca
+  respiratoria
+  neurologica
+  obstetrica
+  intoxicacion
+  traslado
+  otra
 
   @@schema("public")
 }
