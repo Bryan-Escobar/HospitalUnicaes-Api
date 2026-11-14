@@ -117,7 +117,7 @@ jobs:
           [ "$elapsed" -lt 9 ]
           [ "$(docker inspect --format='{{.State.ExitCode}}' api)" = "0" ]
 
-  # Migraciones desde cero + seed idempotente + tests pgTAP (supabase/tests)
+  # Migraciones desde cero + seed idempotente + tests pgTAP (supabase/tests) + pruebas de concurrencia por la API
   test-db:
     name: test-db
     needs: changes
@@ -144,3 +144,43 @@ jobs:
 
       - name: Tests de base de datos (pgTAP)
         run: supabase test db
+
+      # Pruebas de concurrencia (HUNI-78): la API real contra esta misma base, con solicitudes simultáneas.
+      # Van después de pgTAP porque dejan pacientes de prueba e historial en la base.
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Instalar dependencias y compilar la API
+        run: |
+          npm ci
+          npx prisma generate
+          npm run build
+
+      - name: Levantar la API contra el Supabase local
+        run: |
+          supabase status -o env > supabase.env
+          set -a; . ./supabase.env; set +a
+          {
+            echo "API_URL=http://127.0.0.1:3000"
+            echo "SUPABASE_URL=$API_URL"
+            echo "SUPABASE_ANON_KEY=$ANON_KEY"
+          } >> "$GITHUB_ENV"
+          PORT=3000 LOG_LEVEL=warn DATABASE_URL="$DB_URL" DIRECT_URL="$DB_URL"             SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"             nohup node dist/app.js > api.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3000/health > /dev/null && exit 0
+            sleep 1
+          done
+          cat api.log
+          exit 1
+
+      - name: Pruebas de concurrencia (camas, ambulancia e inventario)
+        run: npm run test:concurrencia -- --reporte=concurrencia.md
+
+      - name: Publicar el resultado en el resumen del job
+        if: always()
+        run: |
+          [ -f concurrencia.md ] && { echo "## Pruebas de concurrencia"; cat concurrencia.md; } >> "$GITHUB_STEP_SUMMARY"
+          [ -f api.log ] && tail -20 api.log || true

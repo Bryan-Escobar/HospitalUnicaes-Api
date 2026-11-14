@@ -661,17 +661,18 @@ model camas {
 /// This table contains exclusion constraints and requires additional setup for migrations. Visit https://pris.ly/d/exclusion-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model citas {
-  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  paciente_id      String      @db.Uuid
-  doctor_id        String      @db.Uuid
-  fecha_hora       DateTime    @db.Timestamptz(6)
-  motivo           String?
-  estado           estado_cita @default(programada)
-  created_at       DateTime    @default(now()) @db.Timestamptz(6)
-  duracion_minutos Int         @default(30) @db.SmallInt
-  personal         personal    @relation(fields: [doctor_id], references: [id], onUpdate: NoAction)
-  pacientes        pacientes   @relation(fields: [paciente_id], references: [id], onUpdate: NoAction)
-  consultas        consultas?
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paciente_id          String                 @db.Uuid
+  doctor_id            String                 @db.Uuid
+  fecha_hora           DateTime               @db.Timestamptz(6)
+  motivo               String?
+  estado               estado_cita            @default(programada)
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  duracion_minutos     Int                    @default(30) @db.SmallInt
+  personal             personal               @relation(fields: [doctor_id], references: [id], onUpdate: NoAction)
+  pacientes            pacientes              @relation(fields: [paciente_id], references: [id], onUpdate: NoAction)
+  consultas            consultas?
+  solicitudes_atencion solicitudes_atencion[]
 
   @@index([doctor_id])
   @@index([fecha_hora])
@@ -722,10 +723,11 @@ model diagnosticos {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model especialidades {
-  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nombre      String     @unique
-  descripcion String?
-  personal    personal[]
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre               String                 @unique
+  descripcion          String?
+  personal             personal[]
+  solicitudes_atencion solicitudes_atencion[]
 
   @@schema("public")
 }
@@ -917,6 +919,7 @@ model pacientes {
   hospitalizaciones      hospitalizaciones[]
   perfiles               perfiles?                @relation(fields: [perfil_id], references: [id], onUpdate: NoAction)
   solicitudes_ambulancia solicitudes_ambulancia[]
+  solicitudes_atencion   solicitudes_atencion[]
 
   @@schema("public")
 }
@@ -943,6 +946,7 @@ model perfiles {
   solicitudes_ambulancia_solicitudes_ambulancia_cerrada_porToperfiles    solicitudes_ambulancia[] @relation("solicitudes_ambulancia_cerrada_porToperfiles")
   solicitudes_ambulancia_solicitudes_ambulancia_despachada_porToperfiles solicitudes_ambulancia[] @relation("solicitudes_ambulancia_despachada_porToperfiles")
   solicitudes_ambulancia                                                 solicitudes_ambulancia[]
+  solicitudes_atencion                                                   solicitudes_atencion[]
 
   @@schema("public")
 }
@@ -1052,6 +1056,32 @@ model resultados_laboratorio {
   personal         personal?      @relation(fields: [validado_por], references: [id], onUpdate: NoAction)
 
   @@index([validado_por])
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model solicitudes_atencion {
+  id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paciente_id     String                    @db.Uuid
+  motivo          String
+  especialidad_id String?                   @db.Uuid
+  fecha_preferida DateTime?                 @db.Date
+  franja          franja_horaria            @default(cualquiera)
+  estado          estado_solicitud_atencion @default(pendiente)
+  cita_id         String?                   @db.Uuid
+  respuesta       String?
+  respondida_por  String?                   @db.Uuid
+  respondida_en   DateTime?                 @db.Timestamptz(6)
+  created_at      DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime                  @default(now()) @db.Timestamptz(6)
+  citas           citas?                    @relation(fields: [cita_id], references: [id], onUpdate: NoAction)
+  especialidades  especialidades?           @relation(fields: [especialidad_id], references: [id], onUpdate: NoAction)
+  pacientes       pacientes                 @relation(fields: [paciente_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  perfiles        perfiles?                 @relation(fields: [respondida_por], references: [id], onUpdate: NoAction)
+
+  @@index([paciente_id, created_at(sort: Desc)], map: "solicitudes_atencion_paciente_idx")
   @@schema("public")
 }
 
@@ -1369,6 +1399,22 @@ enum tipo_emergencia {
   intoxicacion
   traslado
   otra
+
+  @@schema("public")
+}
+
+enum estado_solicitud_atencion {
+  pendiente
+  atendida
+  rechazada
+
+  @@schema("public")
+}
+
+enum franja_horaria {
+  manana
+  tarde
+  cualquiera
 
   @@schema("public")
 }
