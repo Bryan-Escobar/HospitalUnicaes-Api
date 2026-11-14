@@ -61,6 +61,7 @@ El esquema de la base de datos se versiona con la **Supabase CLI** en `supabase/
 - Migración inicial: `20261022011429_esquema_inicial.sql`, capturada con `supabase db pull` desde el proyecto remoto (tablas del ERD, enums, triggers e índices).
 - `20261023222640_roles_cuatro.sql`: 4 roles (HUNI-36).
 - `20261024164628_der_completo.sql` (HUNI-37): catálogo editable de tipos de personal, personal sin cuenta, pacientes desactivables, consultas que se cierran, turnos sin solape y citas sin doble reserva (exclusion constraints), y la vista `v_dashboard_summary`.
+- `20261114120000_solicitudes_cita.sql` (HUNI-56): tabla `solicitudes_cita`, vista `v_solicitudes_cita`, RPC `solicitar_cita()`, `cancelar_solicitud_cita()`, `aprobar_solicitud_cita()` y `rechazar_solicitud_cita()`, y Realtime de solicitudes y citas.
 
 ### Configuración inicial (una vez por máquina)
 
@@ -278,7 +279,7 @@ mensaje (mismo catálogo que `ERROR_CODES` de la API) y muestra el detalle si qu
 | `TRANSICION_INVALIDA` | 422 | Cambio de estado no permitido (o la cita ya no está programada/confirmada) |
 | `ACCESO_DENEGADO` | 403 | El rol no puede hacer esa operación |
 
-Nadie inserta en `citas` directo (403): se crean con `crear_cita()`. La colección de Postman
+Nadie inserta en `citas` directo (403): se crean con `crear_cita()` o al aprobar una solicitud del paciente con `aprobar_solicitud_cita()` (HUNI-56: el paciente usa `solicitar_cita()`, ve sus solicitudes en `v_solicitudes_cita` y recepción las resuelve con `aprobar_solicitud_cita()` / `rechazar_solicitud_cita()`). La colección de Postman
 *HospitalUnicaes API · HUNI-51* prueba cada regla contra el proyecto remoto.
 
 ## Estructura del Proyecto

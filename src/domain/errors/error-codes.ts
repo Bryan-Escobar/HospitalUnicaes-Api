@@ -50,6 +50,12 @@ export const ERROR_CODES = {
     descripcion: 'El doctor no está de turno durante toda la cita (inicio y fin).',
   },
 
+  // Solicitudes de cita (HUNI-56). Las lanza la BD (RPC de solicitudes_cita).
+  SOLICITUD_YA_RESUELTA: {
+    status: 409,
+    descripcion: 'La solicitud de cita ya fue aprobada, rechazada o cancelada.',
+  },
+
   // Consultas (HUNI-57)
   CONSULTA_CERRADA: { status: 409, descripcion: 'La consulta ya está cerrada y no se puede modificar.' },
 
