@@ -9,6 +9,7 @@ npm run dev            # Start dev server with hot reload (Node 20, see .nvmrc)
 npm run build          # Compile TypeScript → dist/
 npm test               # Run all tests (Jest + supertest)
 npm run test:coverage  # Tests with coverage report
+npm run test:concurrencia  # Concurrent requests against a running local API (docs/PRUEBAS_CONCURRENCIA.md)
 npm run typecheck      # tsc --noEmit over src + test
 npm run lint           # ESLint (lint:fix to autofix)
 npm run format         # Prettier (format:check in CI)
@@ -84,5 +85,7 @@ describe('Entity API', () => {
   });
 });
 ```
+
+`test/concurrencia/concurrencia.mjs` (HUNI-78) is not a Jest test: it fires simultaneous real requests at a running API on local Supabase (beds, ambulance, inventory) and runs in the CI `test-db` job after pgTAP.
 
 `test/setup.ts` injects fake env vars before app import. `test/helpers/app.ts` exports the Express app. Never test against a real DB.

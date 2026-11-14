@@ -132,6 +132,13 @@ supabase test db
 
 El CI los corre en el job `test-db`, que además aplica el seed tres veces para comprobar que es idempotente.
 
+### Pruebas de concurrencia (HUNI-78)
+
+`npm run test:concurrencia` lanza solicitudes simultáneas contra la API en marcha (misma cama, misma ambulancia,
+mismo lote) y comprueba que no hay sobrecupo, doble despacho ni stock negativo. Solo corre contra un entorno local
+y el CI la ejecuta en `test-db` después de pgTAP. Cómo levantarla y los resultados para la defensa están en
+[`docs/PRUEBAS_CONCURRENCIA.md`](docs/PRUEBAS_CONCURRENCIA.md).
+
 ## Scripts
 
 ```bash
@@ -141,6 +148,7 @@ npm start              # Ejecuta el compilado (dist/app.js)
 npm test               # Tests con Jest + supertest
 npm run test:watch     # Tests en modo watch
 npm run test:coverage  # Tests con reporte de cobertura
+npm run test:concurrencia  # Solicitudes simultáneas contra la API local (docs/PRUEBAS_CONCURRENCIA.md)
 npm run typecheck      # Verificación de tipos (src + test)
 npm run lint           # ESLint (lint:fix para corregir)
 npm run format         # Prettier (format:check solo verifica)
