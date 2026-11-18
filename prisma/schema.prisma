@@ -933,6 +933,7 @@ model perfiles {
   email                                                                  String?                  @unique
   telefono                                                               String?
   avatar_url                                                             String?
+  ultima_conexion_app_at                                                 DateTime?                @db.Timestamptz(6)
   activo                                                                 Boolean                  @default(true)
   created_at                                                             DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at                                                             DateTime                 @default(now()) @db.Timestamptz(6)
@@ -980,9 +981,19 @@ model personal {
   recetas                                                     recetas[]
   resultados_laboratorio                                      resultados_laboratorio[]
   turnos_personal                                             turnos_personal[]
+  conexiones_app_medicos                                      conexiones_app_medicos[]
 
   @@index([especialidad_id])
   @@index([tipo_personal_id])
+  @@schema("public")
+}
+
+model conexiones_app_medicos {
+  personal_id  String   @db.Uuid
+  conectada_at DateTime @db.Timestamptz(6)
+  personal     personal @relation(fields: [personal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([personal_id, conectada_at])
   @@schema("public")
 }
 

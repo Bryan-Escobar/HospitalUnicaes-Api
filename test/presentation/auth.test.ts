@@ -24,6 +24,7 @@ const perfilDe = (rol: Rol, cambios: Partial<PerfilConRelaciones> = {}): PerfilC
     email: `${rol}@demo.hospitalunicaes.test`,
     telefono: null,
     avatar_url: null,
+    ultima_conexion_app_at: null,
     activo: true,
     created_at: new Date('2026-10-24T12:00:00Z'),
     updated_at: new Date('2026-10-24T12:00:00Z'),
@@ -187,6 +188,28 @@ describe('Auth API', () => {
 
       expect(res.body.data.rol).toBe('paciente');
       expect(spy).toHaveBeenCalledWith(USUARIOS.paciente);
+    });
+  });
+
+  describe('POST /api/auth/me/conexion-app', () => {
+    it('registra únicamente el perfil de la sesión y devuelve la hora persistida', async () => {
+      const headers = await sesionComo('doctor');
+      const fecha = new Date('2026-11-18T14:04:00Z');
+      const registrar = jest.spyOn(AuthRepository.prototype, 'registrarConexionApp').mockResolvedValueOnce(fecha);
+
+      const res = await request(app).post('/api/auth/me/conexion-app').set(headers).send({
+        perfil_id: USUARIOS.paciente,
+        ultima_conexion_app_at: '2000-01-01T00:00:00Z',
+      });
+
+      expect(res.status).toBe(200);
+      expect(registrar).toHaveBeenCalledWith(USUARIOS.doctor);
+      expect(res.body.data).toEqual({ ultima_conexion_app_at: fecha.toISOString() });
+    });
+
+    it('rechaza reportes sin sesión', async () => {
+      const res = await request(app).post('/api/auth/me/conexion-app');
+      expect(res.status).toBe(401);
     });
   });
 

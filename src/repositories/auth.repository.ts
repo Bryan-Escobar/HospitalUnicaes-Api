@@ -36,6 +36,13 @@ export class AuthRepository {
     return prisma.perfiles.findUnique({ where: { id }, include: perfilConRelaciones });
   }
 
+  async registrarConexionApp(id: string): Promise<Date | null> {
+    const [fila] = await prisma.$queryRaw<{ conexion: Date | null }[]>`
+      select public.registrar_conexion_app(${id}::uuid) as conexion
+    `;
+    return fila.conexion;
+  }
+
   async existeDocumento(documento: string): Promise<boolean> {
     return (await prisma.pacientes.count({ where: { documento_identidad: documento } })) > 0;
   }

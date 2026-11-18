@@ -14,6 +14,7 @@ export const PerfilSchema = z
     rol: RolSchema,
     activo: z.boolean(),
     created_at: fechaHora,
+    ultima_conexion_app_at: fechaHora.nullable(),
   })
   .openapi('Perfil');
 
@@ -29,3 +30,5 @@ export const MeSchema = PerfilSchema.extend({
     .nullable()
     .openapi({ description: 'Solo para personal del hospital' }),
 }).openapi('Me');
+
+export const ConexionAppSchema = z.object({ ultima_conexion_app_at: fechaHora });

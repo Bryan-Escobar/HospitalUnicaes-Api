@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { ApiResponse } from '../../domain/interfaces';
 import { ActualizarMiPerfilBody, RegistroPacienteBody } from '../../domain/validators/auth.validator';
 import { toErrorResponse } from '../../lib/errorHandler';
-import { AuthService, Me, PerfilDto } from '../../services/auth.service';
+import { AuthService, ConexionApp, Me, PerfilDto } from '../../services/auth.service';
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -22,6 +22,22 @@ export class AuthController {
     try {
       const data = await this.authService.getMe(req.usuario!.id);
       const response: ApiResponse<Me> = { statusCode: 200, success: true, message: 'Usuario autenticado', data };
+      res.status(200).json(response);
+    } catch (error) {
+      const response = toErrorResponse(error);
+      res.status(response.statusCode).json(response);
+    }
+  };
+
+  public registrarConexionApp = async (req: Request, res: Response) => {
+    try {
+      const data = await this.authService.registrarConexionApp(req.usuario!.id);
+      const response: ApiResponse<ConexionApp> = {
+        statusCode: 200,
+        success: true,
+        message: 'Conexión registrada',
+        data,
+      };
       res.status(200).json(response);
     } catch (error) {
       const response = toErrorResponse(error);
