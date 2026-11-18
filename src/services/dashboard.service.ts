@@ -1,12 +1,21 @@
 import { ResumenDashboardSchema } from '../domain/dtos/dashboard.dto';
+import { ReportesQuery } from '../domain/dtos/reportes.dto';
 import { CustomError } from '../domain/errors/CustomError';
 import { z } from '../lib/zod';
 import { DashboardRepository, FilaResumenDashboard } from '../repositories/dashboard.repository';
+import { ReportesRepository } from '../repositories/reportes.repository';
 
 export type ResumenDashboard = z.infer<typeof ResumenDashboardSchema>;
 
 export class DashboardService {
-  constructor(private readonly dashboardRepository = new DashboardRepository()) {}
+  constructor(
+    private readonly dashboardRepository = new DashboardRepository(),
+    private readonly reportesRepository = new ReportesRepository(),
+  ) {}
+
+  obtenerReportes(query: ReportesQuery) {
+    return this.reportesRepository.obtener(query);
+  }
 
   async obtenerResumen(): Promise<ResumenDashboard> {
     const fila = await this.dashboardRepository.obtenerResumen();
