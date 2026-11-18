@@ -49,6 +49,11 @@ export const ERROR_CODES = {
     status: 422,
     descripcion: 'El doctor no está de turno durante toda la cita (inicio y fin).',
   },
+  // HUNI-102
+  AREA_INVALIDA: {
+    status: 422,
+    descripcion: 'El área del turno no es una activa del catálogo `areas_hospital`; elige una de la lista.',
+  },
 
   // Consultas (HUNI-57)
   CONSULTA_CERRADA: { status: 409, descripcion: 'La consulta ya está cerrada y no se puede modificar.' },

@@ -304,6 +304,7 @@ on conflict (item_id, numero_serie) do nothing;
 --   Fernando (emergencia) todos 19:00–07:00   · Patricia (alergista) mar y jue 08:00–12:00
 --   María y José (enfermería) y Lucía (recepción) en sus horarios
 -- isodow: 1 = lunes … 7 = domingo. Se salta el día si el empleado ya tiene un turno que se cruza.
+-- Las áreas deben existir activas en `areas_hospital` (HUNI-102: las carga su migración, antes del seed).
 -- -----------------------------------------------------------------------------
 insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno, notas)
 select p.id, t.area, d.fecha, t.inicio::time, t.fin::time, t.tipo::public.tipo_turno, t.notas
