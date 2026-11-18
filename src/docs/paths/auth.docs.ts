@@ -11,7 +11,7 @@ registerEndpoint({
   tag: TAG,
   summary: 'Registrar apertura de la app móvil',
   description:
-    'Registra la hora del servidor en el perfil autenticado. Si es personal médico activo, también registra la conexión para calcular la asistencia a sus turnos.',
+    'Registra la hora del servidor en el perfil autenticado. Si la cuenta está vinculada a personal activo, también registra la conexión para calcular la asistencia a sus turnos.',
   roles: [...ROLES],
   ticket: 'HUNI-107',
   estado: 'implementado',
