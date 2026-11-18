@@ -85,7 +85,7 @@ select '77777777-7777-4777-8777-000000000012', 'Enfermera', 'De Turno Prueba', i
 from public.tipos_personal where nombre = 'Enfermero/a';
 
 insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
-select p.id, 'Área de prueba',
+select p.id, 'Emergencia',
        ((now() at time zone 'America/El_Salvador') - interval '1 hour')::date,
        ((now() at time zone 'America/El_Salvador') - interval '1 hour')::time(0),
        ((now() at time zone 'America/El_Salvador') + interval '1 hour')::time(0),
