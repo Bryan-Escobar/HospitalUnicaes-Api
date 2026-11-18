@@ -1,9 +1,22 @@
-import { MeSchema, PerfilSchema } from '../../domain/dtos/auth.dto';
+import { ConexionAppSchema, MeSchema, PerfilSchema } from '../../domain/dtos/auth.dto';
 import { ROLES } from '../../domain/dtos/enums';
 import { actualizarMiPerfilBodySchema, registroPacienteBodySchema } from '../../domain/validators/auth.validator';
 import { jsonBody, registerEndpoint } from '../registry';
 
 const TAG = 'Auth';
+
+registerEndpoint({
+  method: 'post',
+  path: '/api/auth/me/conexion-app',
+  tag: TAG,
+  summary: 'Registrar apertura de la app móvil',
+  description:
+    'Registra la hora del servidor en el perfil autenticado. Si es personal médico activo, también registra la conexión para calcular la asistencia a sus turnos.',
+  roles: [...ROLES],
+  ticket: 'HUNI-107',
+  estado: 'implementado',
+  response: { description: 'Conexión registrada', schema: ConexionAppSchema },
+});
 
 registerEndpoint({
   method: 'post',
