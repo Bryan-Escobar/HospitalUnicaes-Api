@@ -7,6 +7,132 @@ Construido con **Node.js**, **Express**, **TypeScript** y **Prisma ORM** sobre P
 - Reglas de negocio y privacidad: [`context.md`](./context.md)
 - Ramas, commits y Pull Requests: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
 
+Este README es también la **guía principal del sistema completo**: la primera sección explica cómo instalar, configurar y
+ejecutar las 4 apps desde cero. El resto del documento es el detalle de la API.
+
+## Sistema completo: las 4 apps desde cero (HUNI-87)
+
+### Repositorios y URLs de producción
+
+| App | Repositorio | Usuarios | Producción |
+|---|---|---|---|
+| API (Node.js + Express) | [HospitalUnicaes-Api](https://github.com/Bryan-Escobar/HospitalUnicaes-Api) | Las 3 apps | <https://hospitalunicaes-api.bescobar.online/api> · contrato en [`/docs`](https://hospitalunicaes-api.bescobar.online/docs) · estado en [`/health`](https://hospitalunicaes-api.bescobar.online/health) |
+| Web (React + Vite) | [HospitalUnicaes-Web](https://github.com/Bryan-Escobar/HospitalUnicaes-Web) | Administrador | <https://hospitalunicaes.bescobar.online> |
+| Android (Kotlin + Compose) | [HospitalUnicaes-Mobile-Android](https://github.com/Bryan-Escobar/HospitalUnicaes-Mobile-Android) | Recepción, asistentes, doctores | Variante `prod` apuntando a la API de producción |
+| iOS (Swift + SwiftUI) | [HospitalUnicaes-Mobile-IOS](https://github.com/Bryan-Escobar/HospitalUnicaes-Mobile-IOS) | Doctores y pacientes | Configuración `Release` apuntando a la API de producción |
+
+Las 4 apps comparten **un solo proyecto de Supabase** (Auth, Postgres, Storage y Realtime). La API usa la llave de
+servicio; los clientes, solo la llave pública (anon/publishable). La rama `prod` de cada repo es la de producción; para
+trabajar se usa `development`.
+
+### Requisitos previos y versiones
+
+| Herramienta | Versión | Para |
+|---|---|---|
+| Git | cualquiera reciente | Clonar los 4 repos |
+| Node.js / npm | **20** para la API (`.nvmrc`), **22** para la Web (la usa su CI y su `Dockerfile`); npm ≥ 10 | API y Web |
+| Supabase CLI | reciente | Migraciones y seed de la BD; Supabase local para los tests de BD |
+| Docker | opcional | Supabase local, imágenes de la API y la Web |
+| Android Studio + JDK | Android Studio con soporte de AGP 9.2, **JDK 21** (el del CI; mínimo 17), SDK de Android 36. Gradle 9.4 lo descarga el wrapper | Android |
+| Xcode | **Xcode 26** (el del CI es 26.6) en macOS, simulador de iOS 17 o superior | iOS |
+
+Además necesitas acceso al proyecto de Supabase **Hospital UNICAES** (ref `idhxyneffsmyekrvpyfg`): de su Dashboard salen
+las URLs, las llaves y la contraseña de la BD. Pídele acceso a quien administra el proyecto.
+
+### 1. Clonar los 4 repos
+
+```bash
+mkdir HospitalUnicaes && cd HospitalUnicaes
+git clone -b development https://github.com/Bryan-Escobar/HospitalUnicaes-Api.git
+git clone -b development https://github.com/Bryan-Escobar/HospitalUnicaes-Web.git
+git clone -b development https://github.com/Bryan-Escobar/HospitalUnicaes-Mobile-Android.git
+git clone -b development https://github.com/Bryan-Escobar/HospitalUnicaes-Mobile-IOS.git
+```
+
+### 2. Variables de entorno de cada app
+
+Cada repo trae un archivo de ejemplo con los nombres de las variables. Cópialo, llénalo y **no lo subas**: el archivo
+real está en `.gitignore` en los 4 repos. Ningún cliente lleva la `service_role`.
+
+| App | Copia… | …como | Variables |
+|---|---|---|---|
+| API | [`.env.example`](./.env.example) | `.env` | Tabla en [Variables de entorno](#2-variables-de-entorno) (abajo) |
+| Web | [`.env.example`](https://github.com/Bryan-Escobar/HospitalUnicaes-Web/blob/development/.env.example) | `.env` | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_OR_ANON_KEY`, `VITE_API_URL` |
+| Android | [`local.properties.example`](https://github.com/Bryan-Escobar/HospitalUnicaes-Mobile-Android/blob/development/local.properties.example) | `local.properties` | `dev.*` y `prod.*`: `apiBaseUrl`, `supabaseUrl`, `supabaseKey` |
+| iOS | [`Config/Secrets.example.xcconfig`](https://github.com/Bryan-Escobar/HospitalUnicaes-Mobile-IOS/blob/development/Config/Secrets.example.xcconfig) | `Config/Secrets.xcconfig` | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, opcionales `API_BASE_URL` y `HOSPITAL_TELEFONO` |
+
+Qué poner en cada una:
+
+| Valor | De dónde sale | Local | Producción |
+|---|---|---|---|
+| URL de la API | — | Web: `http://localhost:3000/api` · Android (emulador): `http://10.0.2.2:3000/api/` · iOS (simulador): `http://localhost:3000/api` (ya viene en `Config/Dev.xcconfig`) | `https://hospitalunicaes-api.bescobar.online/api` (en Android termina en `/`) |
+| URL de Supabase | Dashboard > Project Settings > API | `https://idhxyneffsmyekrvpyfg.supabase.co` | la misma |
+| Llave pública (anon/publishable) | Dashboard > Project Settings > API | la misma en las 3 apps cliente y en `SUPABASE_ANON_KEY` de la API | la misma |
+| `service_role`, `DATABASE_URL`, `DIRECT_URL` | Dashboard > Project Settings > API y > Connect > ORMs > Prisma | solo en el `.env` de la API | solo en Dokploy |
+
+Detalles de cada plataforma:
+
+- **API:** `CORS_ORIGINS` debe incluir la URL de la Web (`http://localhost:5173` en local). Las apps móviles no usan CORS.
+- **Web:** Vite incrusta las variables `VITE_*` al compilar; si las cambias, reinicia `npm run dev` o vuelve a construir la imagen.
+- **Android:** si falta una clave, la app se detiene al abrir con un mensaje que dice cuál. La variante `dev` solo permite HTTP hacia `10.0.2.2`; `prod` exige HTTPS.
+- **iOS:** en un `.xcconfig`, `//` inicia un comentario, así que las URLs se escriben `https:/$()/host`. Si en `Secrets.xcconfig` pones `API_BASE_URL`, reemplaza la de `Dev.xcconfig` (útil para usar la API de producción desde el simulador sin levantar la local).
+
+### 3. Ejecutar cada proyecto localmente
+
+Levántalos en este orden: la API primero, porque las otras 3 apps la consumen.
+
+**API** (desde `HospitalUnicaes-Api`):
+
+```bash
+nvm use               # Node 20
+npm install
+npx prisma generate
+npm run dev           # http://localhost:3000 · contrato en http://localhost:3000/docs
+```
+
+Comprueba con `curl http://localhost:3000/health`: debe responder 200 con `data.database: "up"`. La BD remota ya tiene
+las migraciones y el seed; solo si trabajas con Supabase local (`supabase start` + `supabase db reset`) tienes que
+cargarlos tú (ver [Base de datos y migraciones](#base-de-datos-y-migraciones-supabase-cli)).
+
+**Web** (desde `HospitalUnicaes-Web`):
+
+```bash
+npm install
+npm run dev           # http://localhost:5173
+```
+
+**Android** (desde `HospitalUnicaes-Mobile-Android`): abre la carpeta en Android Studio, espera el *Gradle sync*, elige la
+variante `devDebug` en *Build Variants* y ejecuta `app` en un emulador. Desde terminal:
+
+```bash
+./gradlew installDevDebug     # instala en el emulador o dispositivo conectado
+```
+
+**iOS** (desde `HospitalUnicaes-Mobile-IOS`): abre `HospitalUnicaes.xcodeproj` (Xcode descarga `supabase-swift` solo),
+elige el esquema `HospitalUnicaes` y un simulador de iPhone, y ejecuta con ⌘R. La configuración `Debug` usa
+`Config/Dev.xcconfig` (API local); `Release` usa `Config/Prod.xcconfig`.
+
+### 4. Iniciar sesión
+
+Usa los [usuarios demo](#datos-semilla-supabaseseedsql) del seed (misma contraseña para todos). Cada rol entra por su app:
+
+| App | Usuario demo |
+|---|---|
+| Web | `administrador@demo.hospitalunicaes.test` |
+| Android | `recepcion@demo.hospitalunicaes.test` o `doctor@demo.hospitalunicaes.test` |
+| iOS | `doctor@demo.hospitalunicaes.test` o `paciente@demo.hospitalunicaes.test` |
+
+### Problemas frecuentes
+
+| Síntoma | Causa probable |
+|---|---|
+| La API no arranca: _"… should be a valid URL"_ o falta una variable | `.env` incompleto; compáralo con `.env.example` |
+| `/health` responde `database: "down"` | `DATABASE_URL` o la contraseña de la BD están mal |
+| La Web muestra errores de CORS | Falta su origen en `CORS_ORIGINS` de la API |
+| Android no llega a la API local | En el emulador la PC es `10.0.2.2`, no `localhost`; revisa también que `apiBaseUrl` termine en `/` |
+| iOS dice que Supabase no está configurado | No existe `Config/Secrets.xcconfig` o la URL no usa `https:/$()/` |
+| Cualquier app responde 401 con un usuario válido | La llave pública o la URL de Supabase no son las del proyecto Hospital UNICAES |
+
 ## Requisitos Previos
 
 - **Node.js** 20 (ver `.nvmrc`; con nvm: `nvm use`)
