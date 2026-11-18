@@ -219,7 +219,8 @@ Estos accesos **no pasan por Express**. Los clientes usan el SDK de Supabase con
 | `personal` | L | L (p) | L | — | — | `personal_leer` (`20261110180548`) |
 | `especialidades`, `tipos_personal`, `examenes_catalogo` | L | L | L | L | — | `*_leer`: cualquier usuario con sesión (`20261110180548`) |
 | `avisos` | L (todos) | L (vigentes) | L (vigentes) | L (públicos vigentes) | L (públicos vigentes) | `avisos_publicos_leer` (anon + authenticated), `avisos_internos_leer` (solo personal), `avisos_administrador_leer` (`20261110180548`) |
-| `turnos_personal`, `v_turnos` | LE | L | LE⁷ | L | — | `turnos_leer`, `turnos_crear`, `turnos_editar`, `turnos_borrar` (`20261025235413`). Borrar solo el administrador |
+| `turnos_personal`, `v_turnos` | LE | L | LE⁷ | L | — | `turnos_leer`, `turnos_crear`, `turnos_editar`, `turnos_borrar` (`20261025235413`). Borrar solo el administrador. El área debe ser una activa de `areas_hospital` (`validar_area_turno`, `20261117180000`) |
+| `areas_hospital` (áreas de los turnos) | LE | L | L | L | — | `areas_hospital_leer` (activas; el administrador también las desactivadas), `areas_hospital_crear`, `areas_hospital_editar` (`20261117180000`). Nadie las borra: se desactivan |
 | `citas`, `v_citas` | L, E | L (p), E⁸ | L, E | L (p), E⁹ | — | `citas_leer`, `citas_editar`, `citas_borrar` y `validar_cita()` (`20261025235413`) |
 | `solicitudes_atencion`, `v_solicitudes_atencion` | L | — | L | L (p) | — | `solicitudes_atencion_leer` (`20261113210000`) |
 | `ambulancias` | L | L | L | L | — | `ambulancias_leer` (`20261028193842`) |
@@ -294,7 +295,7 @@ La API es la autoridad: ocultar una pantalla no concede ni quita permisos. Esta 
 | Dashboard | `GET /api/dashboard/resumen` |
 | Usuarios y personal | `/api/personal` (LE), `/api/tipos-personal`, `/api/especialidades` |
 | Pacientes | `/api/pacientes` (LE) |
-| Turnos | `turnos_personal`, `v_turnos` (Supabase directo) |
+| Turnos | `turnos_personal`, `v_turnos`, `areas_hospital` (LE) (Supabase directo) |
 | Mapa de plantas | `/api/habitaciones`, `/api/camas`, `/api/hospitalizaciones` |
 | Inventario y recursos | `/api/inventario`, `/api/activos`, `/api/proveedores` (sección 5) |
 | Laboratorio | `/api/laboratorio/ordenes` (L); el rol también puede procesar exámenes por API |
@@ -323,7 +324,7 @@ La API es la autoridad: ocultar una pantalla no concede ni quita permisos. Esta 
 | Camas, ingreso, traslado y alta | `/api/habitaciones`, `/api/camas`, `/api/hospitalizaciones` (L y E) |
 | Laboratorio (procesar exámenes) | `/api/laboratorio/ordenes` (L), iniciar examen y registrar resultado (E) |
 | Ambulancia (verificar, despachar, cerrar) | `/api/ambulancia/solicitudes`, `…/despachar`, `…/en-curso`, `…/cerrar` |
-| Turnos del personal | `turnos_personal` (LE), `v_turnos` |
+| Turnos del personal | `turnos_personal` (LE), `v_turnos`, `areas_hospital` (L) |
 | Inventario | Permiso de solo consulta de existencias (`/api/inventario`, L). Android no tiene pantalla de inventario en `development` |
 
 **Paciente (iOS).** Tabs: Inicio, Citas, Mi salud, Ambulancia, Perfil (`Features/Shell/RoleTabView.swift`).
@@ -422,6 +423,7 @@ Otras reglas de privacidad en el código:
 |---|---|
 | Anónimo solo ve agregados; el paciente A no lee nada del paciente B; el doctor tratante sí y el que no atiende no; recepción ve datos personales y cama pero no información clínica; administración lee todo; las escrituras directas se rechazan (65 aserciones pgTAP) | `supabase/tests/database/09_privacidad.test.sql` |
 | RLS y RPC de turnos y citas con el JWT de cada rol | `supabase/tests/database/04_turnos_citas.test.sql` |
+| Catálogo de áreas de los turnos (`AREA_INVALIDA`, RLS por rol) | `supabase/tests/database/12_areas_turnos.test.sql` |
 | RLS de solicitudes de atención | `supabase/tests/database/11_solicitudes_atencion.test.sql` |
 | Laboratorio, camas y ambulancia (lectura por rol y reglas de estado) | `06_laboratorio.test.sql`, `07_camas.test.sql`, `08_ambulancia.test.sql` |
 | Respuestas HTTP por ruta (401, 403, alcance) con servicios simulados | `test/presentation/*.test.ts` |
