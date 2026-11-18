@@ -71,14 +71,14 @@ select ok((select count(*) from public.turnos_personal) > 0, 'paciente: lee los 
 select ok((select count(*) from public.v_turnos where nombres is not null) > 0, 'paciente: lee v_turnos con nombres');
 select throws_ok(
   $$ insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
-     values (current_setting('t.roberto')::uuid, 'X', '2030-03-06', '08:00', '12:00', 'manana') $$,
+     values (current_setting('t.roberto')::uuid, 'Consulta externa', '2030-03-06', '08:00', '12:00', 'manana') $$,
   '42501', null, 'paciente: no crea turnos'
 );
 
 select pg_temp.como('11111111-1111-4111-8111-000000000002');  -- doctor
 select throws_ok(
   $$ insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
-     values (current_setting('t.roberto')::uuid, 'X', '2030-03-06', '08:00', '12:00', 'manana') $$,
+     values (current_setting('t.roberto')::uuid, 'Consulta externa', '2030-03-06', '08:00', '12:00', 'manana') $$,
   '42501', null, 'doctor: no crea turnos'
 );
 

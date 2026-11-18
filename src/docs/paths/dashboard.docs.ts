@@ -1,5 +1,22 @@
 import { EstadoPublicoSchema, ResumenDashboardSchema } from '../../domain/dtos/dashboard.dto';
+import { ReportesSchema, reportesQuerySchema } from '../../domain/dtos/reportes.dto';
 import { registerEndpoint } from '../registry';
+
+registerEndpoint({
+  method: 'get',
+  path: '/api/dashboard/reportes',
+  tag: 'Dashboard',
+  summary: 'Reportes por rango de fechas',
+  description:
+    'Rango inclusivo en hora de El Salvador (hasta 366 días y sin fechas futuras). Ocupación por planta al cierre de cada día, ' +
+    'con corte al momento de la consulta para hoy. Citas atendidas por fecha agendada, servicios de ambulancia finalizados ' +
+    'por fecha de cierre agrupados en semanas que comienzan el lunes y órdenes de laboratorio por fecha de solicitud y estado actual.',
+  roles: ['administrador'],
+  ticket: 'HUNI-50',
+  estado: 'implementado',
+  request: { query: reportesQuerySchema },
+  response: { description: 'Reportes', schema: ReportesSchema },
+});
 
 registerEndpoint({
   method: 'get',

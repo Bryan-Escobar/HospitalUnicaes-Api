@@ -1,5 +1,5 @@
 import { logger } from '../config/logger';
-import { MeSchema, PerfilSchema } from '../domain/dtos/auth.dto';
+import { ConexionAppSchema, MeSchema, PerfilSchema } from '../domain/dtos/auth.dto';
 import { CustomError } from '../domain/errors/CustomError';
 import { UsuarioAutenticado } from '../domain/interfaces';
 import { ActualizarMiPerfilBody, RegistroPacienteBody } from '../domain/validators/auth.validator';
@@ -10,6 +10,7 @@ import { SupabaseAuthRepository } from '../repositories/supabase-auth.repository
 
 export type Me = z.infer<typeof MeSchema>;
 export type PerfilDto = z.infer<typeof PerfilSchema>;
+export type ConexionApp = z.infer<typeof ConexionAppSchema>;
 
 export class AuthService {
   constructor(
@@ -37,6 +38,12 @@ export class AuthService {
     const perfil = await this.authRepository.findPerfilCompleto(id);
     if (!perfil) throw CustomError.unauthorized('La cuenta de la sesión ya no existe');
     return toMe(perfil);
+  }
+
+  async registrarConexionApp(id: string): Promise<ConexionApp> {
+    const conexion = await this.authRepository.registrarConexionApp(id);
+    if (!conexion) throw CustomError.fromCode('CUENTA_INACTIVA');
+    return { ultima_conexion_app_at: conexion.toISOString() };
   }
 
   /**
@@ -87,6 +94,7 @@ const toPerfil = (p: Perfil): PerfilDto => ({
   rol: p.rol,
   activo: p.activo,
   created_at: p.created_at.toISOString(),
+  ultima_conexion_app_at: p.ultima_conexion_app_at?.toISOString() ?? null,
 });
 
 /** El paciente necesita su ficha y el personal su registro de empleado; si falta → PERFIL_INCOMPLETO. */
