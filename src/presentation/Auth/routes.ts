@@ -13,6 +13,7 @@ export class AuthRoutes {
 
     router.post('/registro', validateBody(registroPacienteBodySchema), controller.registrar);
     router.get('/me', authenticate, requireRole(...ROLES), controller.getMe);
+    router.post('/me/conexion-app', authenticate, requireRole(...ROLES), controller.registrarConexionApp);
     router.patch(
       '/me',
       authenticate,

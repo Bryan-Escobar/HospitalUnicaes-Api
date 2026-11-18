@@ -1,6 +1,8 @@
 import request from 'supertest';
 import { ResumenDashboardSchema } from '../../src/domain/dtos/dashboard.dto';
+import { ReportesSchema } from '../../src/domain/dtos/reportes.dto';
 import { DashboardRepository, FilaResumenDashboard } from '../../src/repositories/dashboard.repository';
+import { ReportesRepository } from '../../src/repositories/reportes.repository';
 import { app } from '../helpers/app';
 import { sesionComo } from '../helpers/auth';
 
@@ -31,6 +33,52 @@ const fila: FilaResumenDashboard = {
 };
 
 describe('Dashboard API', () => {
+  describe('GET /api/dashboard/reportes', () => {
+    const ruta = '/api/dashboard/reportes';
+    const rango = { desde: '2026-01-12', hasta: '2026-01-12' };
+
+    test('valida el rango antes de consultar las métricas', async () => {
+      const headers = await sesionComo('administrador');
+      const obtener = jest.spyOn(ReportesRepository.prototype, 'obtener');
+      const res = await request(app)
+        .get(ruta)
+        .query({ ...rango, hasta: '2026-01-11' })
+        .set(headers);
+
+      expect(res.status).toBe(400);
+      expect(obtener).not.toHaveBeenCalled();
+    });
+
+    test('restringe los reportes al administrador', async () => {
+      const obtener = jest.spyOn(ReportesRepository.prototype, 'obtener');
+      const res = await request(app)
+        .get(ruta)
+        .query(rango)
+        .set(await sesionComo('doctor'));
+
+      expect(res.status).toBe(403);
+      expect(obtener).not.toHaveBeenCalled();
+    });
+
+    test('entrega los agregados de un rango inclusivo de un solo día', async () => {
+      const datos = {
+        ocupacion: [{ planta: 2, fecha: rango.desde, ocupadas: 3 }],
+        citas: [{ doctor_id: '3f1c2a9e-7b4d-4c1e-9f0a-2d6b8e5c1a7f', doctor: 'Marta Ruiz', atendidas: 2 }],
+        ambulancia: [{ semana: rango.desde, servicios: 1 }],
+        laboratorio: { pendiente: 0, en_proceso: 0, completado: 0 },
+      };
+      const obtener = jest.spyOn(ReportesRepository.prototype, 'obtener').mockResolvedValue(datos);
+      const res = await request(app)
+        .get(ruta)
+        .query(rango)
+        .set(await sesionComo('administrador'));
+
+      expect(res.status).toBe(200);
+      expect(ReportesSchema.parse(res.body.data)).toEqual(datos);
+      expect(obtener).toHaveBeenCalledWith(rango);
+    });
+  });
+
   describe('GET /api/dashboard/resumen', () => {
     test('401 sin token', async () => {
       const res = await request(app).get('/api/dashboard/resumen');
