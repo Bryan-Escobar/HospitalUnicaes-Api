@@ -61,6 +61,7 @@ El esquema de la base de datos se versiona con la **Supabase CLI** en `supabase/
 - Migración inicial: `20261022011429_esquema_inicial.sql`, capturada con `supabase db pull` desde el proyecto remoto (tablas del ERD, enums, triggers e índices).
 - `20261023222640_roles_cuatro.sql`: 4 roles (HUNI-36).
 - `20261024164628_der_completo.sql` (HUNI-37): catálogo editable de tipos de personal, personal sin cuenta, pacientes desactivables, consultas que se cierran, turnos sin solape y citas sin doble reserva (exclusion constraints), y la vista `v_dashboard_summary`.
+- `20261117180000_catalogo_areas_turnos.sql` (HUNI-102): catálogo editable de áreas del hospital (`areas_hospital`); el área de un turno debe ser una activa del catálogo (`AREA_INVALIDA`).
 
 ### Configuración inicial (una vez por máquina)
 
@@ -90,7 +91,8 @@ Es **idempotente**: se puede correr las veces que sea sin duplicar datos. Carga:
 
 - 11 habitaciones: `VIP-301`…`VIP-305` (3ª planta, 1 cama) y `HAB-201`…`HAB-206` (2ª planta, 2 camas) → 17 camas.
 - La única ambulancia (`AMB-001`, disponible).
-- Catálogos de especialidades y exámenes de laboratorio.
+- Catálogos de especialidades y exámenes de laboratorio. (El catálogo de áreas de los turnos, `areas_hospital`, lo carga
+  su migración: el seed solo usa esas áreas.)
 - 7 usuarios demo (abajo), 9 empleados (4 sin cuenta y 1 desactivado) y 6 pacientes con expediente (1 desactivado).
 - **Agenda relativa al día en que corre** (HUNI-51): turnos de hoy − 7 a hoy + 14 que cubren las 24 horas
   (incluye un turno nocturno 19:00–07:00) y citas pasadas (atendidas, canceladas, no_asistio) y futuras
@@ -260,6 +262,8 @@ desde iOS, Android y Web.
 | Qué | Cómo | Quién |
 |---|---|---|
 | Ver turnos (con nombre, tipo y especialidad) | `from('v_turnos').select()` | Cualquier usuario con sesión |
+| Áreas para el turno (lista del formulario) | `from('areas_hospital').select('id, nombre').eq('activo', true).order('orden').order('nombre')` | Cualquier usuario con sesión (el administrador ve también las desactivadas) |
+| Agregar, renombrar, reordenar o desactivar áreas | `from('areas_hospital').insert(...)` / `.update(...)` (no se borran) | Administrador |
 | Crear / editar turnos | `from('turnos_personal').insert(...)` / `.update(...)` | Administrador y recepcionista |
 | Borrar turnos | `from('turnos_personal').delete()` | Administrador |
 | Ver citas (con nombres de paciente y doctor) | `from('v_citas').select()` | Admin y recepción: todas · doctor: las suyas · paciente: las suyas |
@@ -286,6 +290,7 @@ mensaje (mismo catálogo que `ERROR_CODES` de la API) y muestra el detalle si qu
 | Código | HTTP | Cuándo |
 |---|---|---|
 | `TURNO_SOLAPADO` | 409 | El empleado ya tiene otro turno que se cruza |
+| `AREA_INVALIDA` | 422 | El área del turno no es una activa de `areas_hospital` (al crearlo o al cambiarle el área). Se guarda el nombre del catálogo; renombrar un área renombra sus turnos |
 | `CITA_DUPLICADA` | 409 | El doctor o el paciente ya tiene una cita activa en ese horario |
 | `CITA_FUERA_DE_TURNO` | 422 | El turno del doctor no cubre la cita completa (inicio y fin, hora de El Salvador) |
 | `TRANSICION_INVALIDA` | 422 | Cambio de estado no permitido (o la cita ya no está programada/confirmada) |
