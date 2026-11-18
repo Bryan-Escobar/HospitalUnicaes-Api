@@ -192,18 +192,21 @@ describe('Auth API', () => {
   });
 
   describe('POST /api/auth/me/conexion-app', () => {
-    it('registra únicamente el perfil de la sesión y devuelve la hora persistida', async () => {
-      const headers = await sesionComo('doctor');
+    it.each(ROLES)('registra únicamente el perfil de la sesión con rol %s', async (rol) => {
+      const headers = await sesionComo(rol);
       const fecha = new Date('2026-11-18T14:04:00Z');
       const registrar = jest.spyOn(AuthRepository.prototype, 'registrarConexionApp').mockResolvedValueOnce(fecha);
 
-      const res = await request(app).post('/api/auth/me/conexion-app').set(headers).send({
-        perfil_id: USUARIOS.paciente,
-        ultima_conexion_app_at: '2000-01-01T00:00:00Z',
-      });
+      const res = await request(app)
+        .post('/api/auth/me/conexion-app')
+        .set(headers)
+        .send({
+          perfil_id: rol === 'paciente' ? USUARIOS.doctor : USUARIOS.paciente,
+          ultima_conexion_app_at: '2000-01-01T00:00:00Z',
+        });
 
       expect(res.status).toBe(200);
-      expect(registrar).toHaveBeenCalledWith(USUARIOS.doctor);
+      expect(registrar).toHaveBeenCalledWith(USUARIOS[rol]);
       expect(res.body.data).toEqual({ ultima_conexion_app_at: fecha.toISOString() });
     });
 
