@@ -123,10 +123,12 @@ select lives_ok(
 );
 
 -- ============================================================================
--- Renombrar un área renombra sus turnos (también si está desactivada)
+-- Renombrar un área actualiza los turnos futuros y conserva el histórico.
 -- ============================================================================
 insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
 values (current_setting('t.maria')::uuid, 'Alergología', '2030-05-10', '07:00', '15:00', 'manana');
+insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno)
+values (current_setting('t.maria')::uuid, 'Alergología', '2000-01-01', '07:00', '15:00', 'manana');
 update public.areas_hospital set activo = false where nombre = 'Alergología';
 select lives_ok(
   $$ update public.areas_hospital set nombre = 'Alergología e inmunología' where nombre = 'Alergología' $$,
@@ -136,8 +138,10 @@ select is(
   (select area from public.turnos_personal where personal_id = current_setting('t.maria')::uuid and fecha = '2030-05-10'),
   'Alergología e inmunología', 'sus turnos quedan con el nombre nuevo'
 );
-select is((select count(*)::int from public.turnos_personal where area = 'Alergología'), 0,
-  'ningún turno queda con el nombre anterior');
+select is(
+  (select area from public.turnos_personal where personal_id = current_setting('t.maria')::uuid and fecha = '2000-01-01'),
+  'Alergología', 'el turno histórico conserva el nombre original'
+);
 
 -- ============================================================================
 -- RLS
