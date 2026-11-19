@@ -173,7 +173,7 @@ export class AmbulanciaRepository {
       prisma.solicitudes_ambulancia.findMany({
         where,
         include: solicitudInclude,
-        orderBy: { fecha_solicitud: 'desc' },
+        orderBy: [{ fecha_solicitud: 'desc' }, { id: 'desc' }],
         skip,
         take,
       }),

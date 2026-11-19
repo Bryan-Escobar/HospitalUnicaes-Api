@@ -4,7 +4,6 @@ select plan(16);
 
 select set_config('t.doctor', (select id::text from public.personal where codigo_empleado = 'EMP-0002'), true);
 select set_config('t.perfil', (select perfil_id::text from public.personal where codigo_empleado = 'EMP-0002'), true);
-select set_config('t.recepcion', (select id::text from public.personal where codigo_empleado = 'EMP-0003'), true);
 select set_config('t.perfil_recepcion', (select perfil_id::text from public.personal where codigo_empleado = 'EMP-0003'), true);
 select set_config('t.enfermeria', (select id::text from public.personal where codigo_empleado = 'EMP-0004'), true);
 select set_config('t.paciente', '11111111-1111-4111-8111-000000000004', true);
@@ -38,11 +37,15 @@ select is((select estado_asistencia from public.v_turnos where notas = 'Asistenc
 select is((select estado_asistencia from public.v_turnos where notas = 'Asistencia sin cuenta'),
   'sin_cuenta', 'un turno de personal sin cuenta aparece en la vista');
 
--- Se despeja la agenda de recepción de prueba para verificar un turno actualmente activo.
-delete from public.turnos_personal
-where personal_id = current_setting('t.recepcion')::uuid
-  and fecha between (now() at time zone 'America/El_Salvador')::date - 1
-                and (now() at time zone 'America/El_Salvador')::date + 1;
+-- Se usa un registro de personal sin agenda previa para probar el turno activo.
+update public.personal set perfil_id = null where codigo_empleado = 'EMP-0003';
+with incorporacion as (
+  insert into public.personal (perfil_id, nombres, apellidos, tipo_personal_id, codigo_empleado)
+  select current_setting('t.perfil_recepcion')::uuid, nombres, apellidos, tipo_personal_id, 'PRUEBA-ASISTENCIA'
+  from public.personal where codigo_empleado = 'EMP-0003'
+  returning id
+)
+select set_config('t.recepcion', id::text, true) from incorporacion;
 
 with local as (select now() at time zone 'America/El_Salvador' as hora)
 insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno, notas)
