@@ -9,8 +9,10 @@ import { sesionComo } from '../helpers/auth';
 const fila: FilaResumenDashboard = {
   vip_total: 5,
   vip_ocupadas: 3,
+  vip_disponibles: 1,
   semiprivada_total: 12,
   semiprivada_ocupadas: 7,
+  semiprivada_disponibles: 4,
   personal_de_turno: 4,
   personal_de_turno_por_tipo: [
     { tipo: 'Doctor', cantidad: 1 },
@@ -97,9 +99,9 @@ describe('Dashboard API', () => {
       expect(ResumenDashboardSchema.safeParse(res.body.data).success).toBe(true);
       expect(res.body.data).toEqual({
         ocupacion: {
-          vip: { ocupadas: 3, disponibles: 2, total: 5 },
-          semiprivada: { ocupadas: 7, disponibles: 5, total: 12 },
-          total: { ocupadas: 10, disponibles: 7, total: 17 },
+          vip: { ocupadas: 3, disponibles: 1, total: 5 },
+          semiprivada: { ocupadas: 7, disponibles: 4, total: 12 },
+          total: { ocupadas: 10, disponibles: 5, total: 17 },
         },
         personal_de_turno: { total: 4, por_tipo: fila.personal_de_turno_por_tipo },
         ambulancia: { estado: 'en_servicio', solicitud_activa_id: fila.solicitud_activa_id },
@@ -117,6 +119,8 @@ describe('Dashboard API', () => {
         ...fila,
         vip_ocupadas: 0,
         semiprivada_ocupadas: 0,
+        vip_disponibles: 5,
+        semiprivada_disponibles: 12,
         personal_de_turno: 0,
         personal_de_turno_por_tipo: [],
         ambulancia_estado: 'disponible',

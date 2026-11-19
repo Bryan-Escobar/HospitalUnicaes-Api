@@ -24,13 +24,17 @@ export class DashboardService {
   }
 }
 
-const conteo = (total: number, ocupadas: number) => ({ ocupadas, disponibles: total - ocupadas, total });
+const conteo = (total: number, ocupadas: number, disponibles: number) => ({ ocupadas, disponibles, total });
 
 export const toResumen = (f: FilaResumenDashboard): ResumenDashboard => ({
   ocupacion: {
-    vip: conteo(f.vip_total, f.vip_ocupadas),
-    semiprivada: conteo(f.semiprivada_total, f.semiprivada_ocupadas),
-    total: conteo(f.vip_total + f.semiprivada_total, f.vip_ocupadas + f.semiprivada_ocupadas),
+    vip: conteo(f.vip_total, f.vip_ocupadas, f.vip_disponibles),
+    semiprivada: conteo(f.semiprivada_total, f.semiprivada_ocupadas, f.semiprivada_disponibles),
+    total: conteo(
+      f.vip_total + f.semiprivada_total,
+      f.vip_ocupadas + f.semiprivada_ocupadas,
+      f.vip_disponibles + f.semiprivada_disponibles,
+    ),
   },
   personal_de_turno: { total: f.personal_de_turno, por_tipo: f.personal_de_turno_por_tipo },
   // El seed siempre carga la única ambulancia; si faltara, se informa como disponible para no romper el panel.
