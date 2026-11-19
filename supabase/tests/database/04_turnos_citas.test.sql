@@ -6,7 +6,7 @@
 --   005 doctora Gabriela (EMP-0005) · 007 paciente Ana Sofía
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(59);
 
 create function pg_temp.como(p_usuario uuid) returns void language plpgsql as $$
 begin
@@ -284,6 +284,53 @@ select pg_temp.como_backend();
 select lives_ok(
   $$ select public.crear_cita(current_setting('t.ana')::uuid, current_setting('t.gabriela')::uuid, '2030-03-04 11:00-06') $$,
   'backend (API / service_role): crea citas sin JWT de usuario'
+);
+
+-- Se usan fechas locales relativas para comprobar el cierre del historial.
+select set_config('t.hoy', public.hoy_local()::text, true);
+insert into public.turnos_personal (personal_id, area, fecha, hora_inicio, hora_fin, tipo_turno, notas)
+select p.id, 'Recepción', current_setting('t.hoy')::date + d.dias, d.inicio, d.fin, 'guardia', d.nota
+from public.personal p
+cross join (values
+  (-1, time '23:00', time '06:00', 'Historial: ayer'),
+  (0, time '19:00', time '07:00', 'Historial: hoy'),
+  (1, time '10:00', time '12:00', 'Historial: mañana')
+) d(dias, inicio, fin, nota)
+where p.codigo_empleado = 'EMP-0001';
+
+select pg_temp.como('11111111-1111-4111-8111-000000000001');
+select throws_like(
+  $$ update public.turnos_personal set notas = 'Cambio' where notas = 'Historial: ayer' $$,
+  'TURNO_HISTORICO:%', 'administrador: no edita un turno nocturno iniciado ayer'
+);
+select throws_like(
+  $$ delete from public.turnos_personal where notas = 'Historial: ayer' $$,
+  'TURNO_HISTORICO:%', 'administrador: no elimina un turno anterior'
+);
+select throws_like(
+  $$ update public.turnos_personal set notas = 'Cambio' where notas = 'Historial: hoy' $$,
+  'TURNO_HISTORICO:%', 'administrador: no edita un turno de hoy'
+);
+select throws_like(
+  $$ delete from public.turnos_personal where notas = 'Historial: hoy' $$,
+  'TURNO_HISTORICO:%', 'administrador: no elimina un turno de hoy'
+);
+select throws_like(
+  $$ update public.turnos_personal set fecha = current_setting('t.hoy')::date where notas = 'Historial: mañana' $$,
+  'TURNO_HISTORICO:%', 'administrador: no mueve un turno futuro a hoy'
+);
+select lives_ok(
+  $$ update public.turnos_personal set notas = 'Historial: actualizado' where notas = 'Historial: mañana' $$,
+  'administrador: puede editar el turno de mañana'
+);
+select lives_ok(
+  $$ delete from public.turnos_personal where notas = 'Historial: actualizado' $$,
+  'administrador: puede eliminar el turno de mañana'
+);
+select set_eq(
+  $$ select notas from public.turnos_personal where notas like 'Historial:%' $$,
+  $$ values ('Historial: ayer'), ('Historial: hoy') $$,
+  'solo permanecen los turnos históricos y conservan sus datos'
 );
 
 select * from finish();
