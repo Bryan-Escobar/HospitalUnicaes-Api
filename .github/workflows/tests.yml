@@ -179,12 +179,6 @@ jobs:
       - name: Pruebas de concurrencia (camas, ambulancia e inventario)
         run: npm run test:concurrencia -- --reporte=concurrencia.md
 
-      # HUNI-93: el reinicio de la demo deja la base como recién sembrada aunque las pruebas la hayan ensuciado.
-      - name: Reinicio de datos demo (y pgTAP otra vez sobre el resultado)
-        run: |
-          npm run demo:reset
-          supabase test db
-
       - name: Publicar el resultado en el resumen del job
         if: always()
         run: |

@@ -219,11 +219,11 @@ Es **idempotente**: se puede correr las veces que sea sin duplicar datos. Carga:
 - La única ambulancia (`AMB-001`, disponible).
 - Catálogos de especialidades y exámenes de laboratorio. (El catálogo de áreas de los turnos, `areas_hospital`, lo carga
   su migración: el seed solo usa esas áreas.)
-- 10 usuarios demo (abajo), 11 empleados (4 sin cuenta y 1 desactivado) y 9 pacientes con expediente (1 desactivado).
+- 7 usuarios demo (abajo), 9 empleados (4 sin cuenta y 1 desactivado) y 6 pacientes con expediente (1 desactivado).
 - **Agenda relativa al día en que corre** (HUNI-51): turnos de hoy − 7 a hoy + 14 que cubren las 24 horas
   (incluye un turno nocturno 19:00–07:00) y citas pasadas (atendidas, canceladas, no_asistio) y futuras
   (programadas y confirmadas), siempre dentro del turno del doctor.
-- Una consulta cerrada con diagnóstico, receta y laboratorio; una orden pendiente; 4 hospitalizaciones activas;
+- Una consulta cerrada con diagnóstico, receta y laboratorio; una orden pendiente; 2 hospitalizaciones activas;
   7 avisos (HUNI-74: 3 públicos y 2 internos vigentes, 1 programado y 1 vencido) y 2 servicios de ambulancia
   finalizados.
 - **Inventario** (HUNI-97, HUNI-98): 3 proveedores (1 desactivado), 7 ítems (1 desactivado), lotes que vencen
@@ -246,16 +246,8 @@ supabase db push --include-seed    # remoto: migraciones pendientes + seed
 | doctor (Pediatría, tarde y fines de semana) | `pediatria@demo.hospitalunicaes.test` | `HospitalDemo2026` |
 | doctor (Emergencia, noche) | `emergencia@demo.hospitalunicaes.test` | `HospitalDemo2026` |
 | paciente | `paciente2@demo.hospitalunicaes.test` | `HospitalDemo2026` |
-| recepcionista (Recepcionista, tarde) | `recepcion2@demo.hospitalunicaes.test` | `HospitalDemo2026` |
-| recepcionista (Asistente, fines de semana) | `recepcion3@demo.hospitalunicaes.test` | `HospitalDemo2026` |
-| paciente | `paciente3@demo.hospitalunicaes.test` | `HospitalDemo2026` |
 
-> ⚠ Esta contraseña es pública (está en el repositorio) y solo vale en local. En producción las cuentas demo
-> usan otra que conoce solo el equipo: la pone `npm run demo:reset -- --remoto` con `DEMO_PASSWORD`.
-
-**Reiniciar la demo (HUNI-93):** `npm run demo:reset` borra los datos de operación y vuelve a cargar el seed en una
-sola transacción (agenda y caducidades relativas a hoy). Qué borra, qué conserva, qué enseñar con cada rol y los
-pasos para producción: [`docs/DEMO_DEFENSA.md`](docs/DEMO_DEFENSA.md).
+> ⚠ Esta contraseña es pública (está en el repositorio). Cámbiala en el proyecto remoto antes de la demo final.
 
 ### Tests de base de datos
 
