@@ -41,8 +41,8 @@ select is(
   (select count(*)::int from auth.users u where u.email like '%@demo.hospitalunicaes.test'),
   'todos los usuarios demo pueden iniciar sesión con email'
 );
-select is((select count(*)::int from auth.users u where u.email like '%@demo.hospitalunicaes.test'), 7,
-  '7 usuarios demo: 1 admin, 3 doctores, 1 recepcionista y 2 pacientes');
+select is((select count(*)::int from auth.users u where u.email like '%@demo.hospitalunicaes.test'), 10,
+  '10 usuarios demo: 1 admin, 3 doctores, 3 recepcionistas y 3 pacientes');
 select is(
   (select count(*)::int from public.pacientes pa join public.expedientes e on e.paciente_id = pa.id
     where pa.perfil_id = '11111111-1111-4111-8111-000000000004'),

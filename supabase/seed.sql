@@ -12,10 +12,14 @@
 --   pediatria@demo.hospitalunicaes.test      → doctor (Pediatría, turnos de tarde y fines de semana)
 --   emergencia@demo.hospitalunicaes.test     → doctor (Medicina de emergencia, turnos de noche)
 --   paciente2@demo.hospitalunicaes.test      → paciente
+--   recepcion2@demo.hospitalunicaes.test     → recepcionista (Recepcionista, turno de tarde)       HUNI-93
+--   recepcion3@demo.hospitalunicaes.test     → recepcionista (Asistente, fines de semana)         HUNI-93
+--   paciente3@demo.hospitalunicaes.test      → paciente                                           HUNI-93
 --
 -- Turnos y citas (HUNI-51) se generan relativos al día en que corre el seed (de hoy - 7 a hoy + 14),
 -- así el demo siempre tiene agenda pasada, de hoy y futura.
--- ⚠ La contraseña es pública (está en el repo): cámbiala en el remoto antes de la demo final.
+-- ⚠ La contraseña es pública (está en el repo) y solo vale en local. En producción la cambia
+--   `npm run demo:reset -- --remoto` (HUNI-93) por DEMO_PASSWORD, que conoce solo el equipo. Ver docs/DEMO_DEFENSA.md.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -84,7 +88,10 @@ with demo (id, email, nombres, apellidos) as (
     ('11111111-1111-4111-8111-000000000004'::uuid, 'paciente@demo.hospitalunicaes.test',      'Carlos',  'Martínez Rivas'),
     ('11111111-1111-4111-8111-000000000005'::uuid, 'pediatria@demo.hospitalunicaes.test',     'Gabriela', 'Ortiz Lemus'),
     ('11111111-1111-4111-8111-000000000006'::uuid, 'emergencia@demo.hospitalunicaes.test',    'Fernando', 'Aguilar Soto'),
-    ('11111111-1111-4111-8111-000000000007'::uuid, 'paciente2@demo.hospitalunicaes.test',     'Ana Sofía', 'Ramírez Cruz')
+    ('11111111-1111-4111-8111-000000000007'::uuid, 'paciente2@demo.hospitalunicaes.test',     'Ana Sofía', 'Ramírez Cruz'),
+    ('11111111-1111-4111-8111-000000000008'::uuid, 'recepcion2@demo.hospitalunicaes.test',    'Karla',    'Menjívar Duarte'),
+    ('11111111-1111-4111-8111-000000000009'::uuid, 'recepcion3@demo.hospitalunicaes.test',    'Diego',    'Rivas Henríquez'),
+    ('11111111-1111-4111-8111-000000000010'::uuid, 'paciente3@demo.hospitalunicaes.test',     'Luis Alberto', 'Quintanilla Mejía')
 )
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -109,7 +116,8 @@ where u.id in (
   '11111111-1111-4111-8111-000000000001', '11111111-1111-4111-8111-000000000002',
   '11111111-1111-4111-8111-000000000003', '11111111-1111-4111-8111-000000000004',
   '11111111-1111-4111-8111-000000000005', '11111111-1111-4111-8111-000000000006',
-  '11111111-1111-4111-8111-000000000007'
+  '11111111-1111-4111-8111-000000000007', '11111111-1111-4111-8111-000000000008',
+  '11111111-1111-4111-8111-000000000009', '11111111-1111-4111-8111-000000000010'
 )
 on conflict (provider_id, provider) do nothing;
 
@@ -124,12 +132,15 @@ join (values
   ('11111111-1111-4111-8111-000000000004'::uuid, 'paciente'),
   ('11111111-1111-4111-8111-000000000005'::uuid, 'doctor'),
   ('11111111-1111-4111-8111-000000000006'::uuid, 'doctor'),
-  ('11111111-1111-4111-8111-000000000007'::uuid, 'paciente')
+  ('11111111-1111-4111-8111-000000000007'::uuid, 'paciente'),
+  ('11111111-1111-4111-8111-000000000008'::uuid, 'recepcionista'),
+  ('11111111-1111-4111-8111-000000000009'::uuid, 'recepcionista'),
+  ('11111111-1111-4111-8111-000000000010'::uuid, 'paciente')
 ) as r (id, rol) on r.id = u.id
 on conflict (id) do update set rol = excluded.rol;
 
 -- -----------------------------------------------------------------------------
--- Personal demo: 5 con cuenta y 4 sin cuenta (solo aparecen en turnos; la alergista también atiende citas).
+-- Personal demo: 7 con cuenta y 4 sin cuenta (solo aparecen en turnos; la alergista también atiende citas).
 -- EMP-0009 está desactivado para probar los filtros de activo.
 -- -----------------------------------------------------------------------------
 insert into public.personal (perfil_id, nombres, apellidos, tipo_personal_id, especialidad_id, codigo_empleado, num_licencia, fecha_contratacion)
@@ -143,7 +154,9 @@ from (values
   ('11111111-1111-4111-8111-000000000006'::uuid, 'Fernando', 'Aguilar Soto', 'Médico de emergencia', 'Medicina de emergencia', 'EMP-0006', 'JVPM-12950', '2021-08-16'),
   (null::uuid,                                   'José',     'Navarro Paz',  'Enfermero/a',    null,               'EMP-0007', 'JVPE-60117', '2025-01-06'),
   (null::uuid,                                   'Patricia', 'Villalta Ríos', 'Alergista',     'Alergología',      'EMP-0008', 'JVPM-13304', '2023-11-20'),
-  (null::uuid,                                   'Óscar',    'Mejía Lara',   'Asistente',      null,               'EMP-0009', null,         '2024-04-01')
+  (null::uuid,                                   'Óscar',    'Mejía Lara',   'Asistente',      null,               'EMP-0009', null,         '2024-04-01'),
+  ('11111111-1111-4111-8111-000000000008'::uuid, 'Karla',    'Menjívar Duarte', 'Recepcionista', null,             'EMP-0010', null,         '2025-05-19'),
+  ('11111111-1111-4111-8111-000000000009'::uuid, 'Diego',    'Rivas Henríquez', 'Asistente',     null,             'EMP-0011', null,         '2025-08-04')
 ) as p (perfil_id, nombres, apellidos, tipo, especialidad, codigo, licencia, contratacion)
 join public.tipos_personal tp on tp.nombre = p.tipo
 left join public.especialidades e on e.nombre = p.especialidad
@@ -153,7 +166,7 @@ on conflict (codigo_empleado) do nothing;
 update public.personal set activo = false where codigo_empleado = 'EMP-0009' and activo;
 
 -- -----------------------------------------------------------------------------
--- Pacientes demo con su expediente: 2 con cuenta y 4 sin cuenta (registrados en recepción).
+-- Pacientes demo con su expediente: 3 con cuenta y 6 sin cuenta (registrados en recepción).
 -- Miguel Ángel Torres está desactivado para probar los filtros de activo.
 -- -----------------------------------------------------------------------------
 insert into public.pacientes (perfil_id, nombres, apellidos, documento_identidad, fecha_nacimiento, sexo, telefono, direccion, contacto_emergencia, telefono_emergencia)
@@ -164,7 +177,11 @@ from (values
   (null::uuid,                                   'Jorge',        'Hernández Alas',   '03456789-0', '1978-01-23', 'masculino', '+503 7000-0010', 'Chalchuapa',                   'Elena Alas (hermana)',  '+503 7000-0011'),
   (null::uuid,                                   'Daniela',      'Pineda Morán',     null,         '2018-06-30', 'femenino',  '+503 7000-0012', 'Metapán',                      'Karla Morán (madre)',   '+503 7000-0012'),
   (null::uuid,                                   'Rosa Elena',   'Guzmán de Flores', '04567890-1', '1951-11-08', 'femenino',  '+503 7000-0014', 'Santa Ana, centro',            'Pedro Flores (hijo)',   '+503 7000-0015'),
-  (null::uuid,                                   'Miguel Ángel', 'Torres Valle',     '05678901-2', '1985-03-17', 'masculino', '+503 7000-0016', 'Coatepeque',                   null,                    null)
+  (null::uuid,                                   'Miguel Ángel', 'Torres Valle',     '05678901-2', '1985-03-17', 'masculino', '+503 7000-0016', 'Coatepeque',                   null,                    null),
+  -- HUNI-93: dos pacientes hospitalizados más, para que la ocupación de camas se vea en la defensa
+  ('11111111-1111-4111-8111-000000000010'::uuid, 'Luis Alberto', 'Quintanilla Mejía', '08901234-5', '1988-02-11', 'masculino', '+503 7000-0022', 'Santa Ana, colonia Santa Lucía', 'Irma Mejía (madre)', '+503 7000-0023'),
+  (null::uuid,                                   'Ernesto',      'Zelaya Campos',    '06789012-3', '1963-07-29', 'masculino', '+503 7000-0018', 'El Congo',                     'Teresa Campos (esposa)', '+503 7000-0019'),
+  (null::uuid,                                   'Marta Alicia', 'Cáceres de León',  '07890123-4', '1972-12-04', 'femenino',  '+503 7000-0020', 'Santa Ana, colonia IVU',       'Julio León (hijo)',      '+503 7000-0021')
 ) as p (perfil_id, nombres, apellidos, documento, nacimiento, sexo, telefono, direccion, contacto, tel_contacto)
 where (p.perfil_id is null and not exists (
          select 1 from public.pacientes x
@@ -192,7 +209,10 @@ from (
     (3, 'Jorge',        'Hernández Alas',   'B+',  'Mariscos',      'Fumador por 15 años',         'Hipertensión arterial'),
     (4, 'Daniela',      'Pineda Morán',     'O-',  'Polen, ácaros', 'Esquema de vacunas completo', 'Asma leve'),
     (5, 'Rosa Elena',   'Guzmán de Flores', 'AB+', 'Sulfas',        'Fractura de cadera (2019)',   'Diabetes tipo 2'),
-    (6, 'Miguel Ángel', 'Torres Valle',     'A-',  null,            null,                          null)
+    (6, 'Miguel Ángel', 'Torres Valle',     'A-',  null,            null,                          null),
+    (7, 'Ernesto',      'Zelaya Campos',    'O+',  null,            'Exfumador',                   'EPOC'),
+    (8, 'Marta Alicia', 'Cáceres de León',  'B-',  'Ibuprofeno',    'Colecistectomía (2015)',      null),
+    (9, 'Luis Alberto', 'Quintanilla Mejía', 'A+', null,            'Fractura de muñeca (2020)',   null)
   ) as e (orden, nombres, apellidos, sangre, alergias, antecedentes, cronicas)
   join public.pacientes pa on pa.nombres = e.nombres and pa.apellidos = e.apellidos
   where not exists (select 1 from public.expedientes ex where ex.paciente_id = pa.id)
@@ -316,7 +336,9 @@ from (values
   ('EMP-0008', 'Alergología',      array[2,4],           '08:00', '12:00', 'manana',  null),
   ('EMP-0004', 'Hospitalización',  array[1,2,3,4,5],     '07:00', '15:00', 'manana',  null),
   ('EMP-0007', 'Emergencia',       array[1,2,3,4,5],     '15:00', '23:00', 'tarde',   null),
-  ('EMP-0003', 'Recepción',        array[1,2,3,4,5],     '07:00', '15:00', 'manana',  null)
+  ('EMP-0003', 'Recepción',        array[1,2,3,4,5],     '07:00', '15:00', 'manana',  null),
+  ('EMP-0010', 'Recepción',        array[1,2,3,4,5],     '15:00', '23:00', 'tarde',   null),
+  ('EMP-0011', 'Recepción',        array[6,7],           '07:00', '19:00', 'guardia', 'Recepción de fin de semana')
 ) as t (codigo, area, dias, inicio, fin, tipo, notas)
 join public.personal p on p.codigo_empleado = t.codigo
 cross join lateral (
@@ -347,7 +369,8 @@ begin
   select array_agg(pa.id order by pa.fecha_nacimiento) into v_adultos
   from public.pacientes pa
   where pa.activo
-    and (pa.perfil_id in ('11111111-1111-4111-8111-000000000004', '11111111-1111-4111-8111-000000000007')
+    and (pa.perfil_id in ('11111111-1111-4111-8111-000000000004', '11111111-1111-4111-8111-000000000007',
+                          '11111111-1111-4111-8111-000000000010')
          or (pa.nombres, pa.apellidos) in (('Jorge', 'Hernández Alas'), ('Rosa Elena', 'Guzmán de Flores')));
 
   select pa.id into v_nina
@@ -624,7 +647,9 @@ insert into public.hospitalizaciones (paciente_id, cama_id, doctor_tratante_id, 
 select pa.id, c.id, d.id, now() - h.dias * interval '1 day', h.motivo
 from (values
   ('Rosa Elena', 'Guzmán de Flores', 'VIP-301-A', 'EMP-0002', 2, 'Descompensación de diabetes'),
-  ('Jorge',      'Hernández Alas',   'HAB-201-A', 'EMP-0006', 1, 'Crisis hipertensiva')
+  ('Jorge',      'Hernández Alas',   'HAB-201-A', 'EMP-0006', 1, 'Crisis hipertensiva'),
+  ('Ernesto',      'Zelaya Campos',   'HAB-202-A', 'EMP-0002', 3, 'Neumonía adquirida en la comunidad'),
+  ('Marta Alicia', 'Cáceres de León', 'VIP-302-A', 'EMP-0002', 1, 'Pielonefritis aguda')
 ) as h (nombres, apellidos, cama, doctor, dias, motivo)
 join public.pacientes pa on pa.nombres = h.nombres and pa.apellidos = h.apellidos
 join public.camas c on c.codigo = h.cama and c.estado = 'disponible'
